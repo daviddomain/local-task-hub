@@ -1,0 +1,69 @@
+Local Task Hub is a local first, dockerized, single-user application.
+
+Always read these files before planning or implementing:
+- AGENTS.md
+- MVP.md
+- package.json
+- docker-compose.yml
+- components.json
+
+Treat MVP.md as the product source of truth and AGENTS.md as the implementation policy.
+
+Work in two distinct modes.
+
+Planning mode:
+- create or refine GitHub issues only
+- do not implement code
+- do not create branches or pull requests
+- split work into small, reviewable issues
+- include acceptance criteria and dependencies
+- stay strictly within Phase 1
+
+Implementation mode:
+- work on exactly one GitHub issue at a time
+- keep diffs small and reviewable
+- do not broaden scope beyond the issue
+- open a pull request when the issue is complete
+
+Technical defaults for this repository:
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui only for UI building blocks
+- MySQL in Docker
+- mysql2 or mysql2/promise for DB access
+- no ORM
+- desktop first
+- dark mode required
+
+UI guidance:
+- prefer existing shadcn/ui patterns over custom primitives
+- keep the interface calm, minimal, and information dense
+- use accessible interaction patterns
+- prefer Server Components by default
+- use Client Components only where interaction requires them
+
+Data guidance:
+- keep SQL explicit and readable
+- use parameterized queries only
+- isolate database access in dedicated server-side modules
+- do not introduce hidden architecture layers without need
+
+Testing guidance:
+- use Playwright for flows with meaningful interaction logic
+- especially task creation, editing, filtering, time tracking, and persistence across reload
+- do not claim tests passed unless they were actually run
+
+Scope guidance:
+- no auth
+- no multi-user support
+- no cloud sync
+- no third-party API integrations in Phase 1
+- no drag and drop ordering in Phase 1
+- no rich text editor
+- no syntax highlighting
+- no remote favicon fetching
+
+If a requirement is unclear, prefer the smaller and safer interpretation.
+If a change feels architectural or broad, stop and reduce scope.
+Never silently invent Phase 2 features inside a Phase 1 issue.
