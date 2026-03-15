@@ -3,6 +3,8 @@ Local Task Hub is a local first, dockerized, single-user application.
 Always read these files before planning or implementing:
 
 - AGENTS.md
+- .gooseignore
+- .goosehints
 - MVP.md
 - package.json
 - docker-compose.yml
@@ -27,6 +29,40 @@ Implementation mode:
 - keep diffs small and reviewable
 - do not broaden scope beyond the issue
 - open a pull request when the issue is complete
+
+Execution environment for this repository:
+
+- this project is developed inside WSL2
+- the default distro is Ubuntu-22.04
+- the shell is zsh with oh-my-zsh
+- Node.js and npm are installed via nvm
+- always use the Linux repository path inside WSL
+- never operate on the repository through a Windows UNC path
+- never run project commands through cmd.exe or PowerShell in a `\\wsl.localhost\...` working directory
+- always use a login shell so the user's shell config and nvm are loaded
+
+Required preflight before making any edits:
+
+- confirm the working directory is the Linux repo path
+- confirm the shell is zsh
+- confirm `node -v` works
+- confirm `npm -v` works
+
+If any preflight check fails:
+
+- stop immediately
+- report the environment blocker clearly
+- do not edit files
+- do not claim validation was performed
+
+Hard stop rules:
+
+- stop if shell quoting behaves inconsistently
+- stop if commands succeed only intermittently
+- stop if node or npm are unavailable
+- stop if the repository path is treated as a Windows UNC path
+- stop if required files or issue details cannot be read reliably
+- do not continue with partial edits in an unstable environment
 
 Technical defaults for this repository:
 
@@ -60,6 +96,8 @@ Testing guidance:
 - use Playwright for flows with meaningful interaction logic
 - especially task creation, editing, filtering, time tracking, and persistence across reload
 - do not claim tests passed unless they were actually run
+- report exactly which validation commands were executed
+- if validation is blocked by environment issues, report that explicitly
 
 Scope guidance:
 
