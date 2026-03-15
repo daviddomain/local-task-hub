@@ -1,0 +1,27 @@
+# secrets and env
+.env*
+*.pem
+*.key
+*.p12
+
+# vcs and dependencies
+.git/
+node_modules/
+
+# build artifacts
+.next/
+out/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# misc
+.humans/

@@ -1,0 +1,37 @@
+services:
+  db:
+    build:
+      context: ./docker
+      dockerfile: DockerfileMySQL
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  whodb:
+    image: clidey/whodb
+    ports:
+      - "8080:8080"
+    # environment:
+      # AI Integration (Optional)
+      # Ollama Configuration
+      # - WHODB_OLLAMA_HOST=localhost
+      # - WHODB_OLLAMA_PORT=11434
+
+      # Anthropic Configuration
+      # - WHODB_ANTHROPIC_API_KEY=your_key_here
+      # - WHODB_ANTHROPIC_ENDPOINT=https://api.anthropic.com/v1
+
+      # OpenAI Configuration
+      # - WHODB_OPENAI_API_KEY=your_key_here
+      # - WHODB_OPENAI_ENDPOINT=https://api.openai.com/v1
+    # volumes: # (Optional for SQLite)
+    #   - ./sample.db:/db/sample.db
+
+volumes:
+  mysql-data:
