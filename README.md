@@ -1,5 +1,11 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Local MySQL (Phase 1)
+
+For local Docker MySQL setup, health checks, persistence behavior, and safe reset steps, see:
+
+- [docs/local-mysql.md](docs/local-mysql.md)
+
 ## Getting Started
 
 First, run the development server:
