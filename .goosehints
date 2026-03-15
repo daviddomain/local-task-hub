@@ -1,6 +1,7 @@
 Local Task Hub is a local first, dockerized, single-user application.
 
 Always read these files before planning or implementing:
+
 - AGENTS.md
 - MVP.md
 - package.json
@@ -12,6 +13,7 @@ Treat MVP.md as the product source of truth and AGENTS.md as the implementation 
 Work in two distinct modes.
 
 Planning mode:
+
 - create or refine GitHub issues only
 - do not implement code
 - do not create branches or pull requests
@@ -20,12 +22,14 @@ Planning mode:
 - stay strictly within Phase 1
 
 Implementation mode:
+
 - work on exactly one GitHub issue at a time
 - keep diffs small and reviewable
 - do not broaden scope beyond the issue
 - open a pull request when the issue is complete
 
 Technical defaults for this repository:
+
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
@@ -37,6 +41,7 @@ Technical defaults for this repository:
 - dark mode required
 
 UI guidance:
+
 - prefer existing shadcn/ui patterns over custom primitives
 - keep the interface calm, minimal, and information dense
 - use accessible interaction patterns
@@ -44,17 +49,20 @@ UI guidance:
 - use Client Components only where interaction requires them
 
 Data guidance:
+
 - keep SQL explicit and readable
 - use parameterized queries only
 - isolate database access in dedicated server-side modules
 - do not introduce hidden architecture layers without need
 
 Testing guidance:
+
 - use Playwright for flows with meaningful interaction logic
 - especially task creation, editing, filtering, time tracking, and persistence across reload
 - do not claim tests passed unless they were actually run
 
 Scope guidance:
+
 - no auth
 - no multi-user support
 - no cloud sync
@@ -63,6 +71,18 @@ Scope guidance:
 - no rich text editor
 - no syntax highlighting
 - no remote favicon fetching
+
+When creating GitHub issues, apply labels consistently.
+
+Rules:
+
+- apply exactly one type label
+- apply at least one area label
+- apply exactly one priority label
+- only use a status label when it adds real value
+- use "epic" only for umbrella issues, never for normal implementation tasks
+- use "needs-playwright" for issues with meaningful interaction logic
+- do not invent new labels unless explicitly instructed
 
 If a requirement is unclear, prefer the smaller and safer interpretation.
 If a change feels architectural or broad, stop and reduce scope.
