@@ -50,6 +50,13 @@ Command guidance:
   - `Get-Location` in PowerShell contexts
 - use Windows path syntax when referring to files in commands
 
+Docker command guidance:
+
+- do not wrap container commands in `sh -lc` unless strictly necessary
+- prefer direct process execution via `docker compose exec`
+- avoid nested shell quoting chains
+- for MySQL checks, call `mysql` directly inside the container instead of invoking an intermediate shell
+
 Mandatory preflight before any edits:
 
 - confirm the working directory is `C:\Projects\local-task-hub`
