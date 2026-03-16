@@ -32,8 +32,6 @@ Implementation mode:
 
 Required preflight before making any edits:
 
-- confirm the working directory is the Linux repo path
-- confirm the shell is zsh
 - confirm `node -v` works
 - confirm `npm -v` works
 
