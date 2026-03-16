@@ -60,6 +60,16 @@ MySQL data is persisted in the named Docker volume declared in `docker-compose.y
 
 That means data survives container restarts and `docker compose down`.
 
+## Application DB module behavior (server-side)
+
+The application uses a dedicated server-side module at `src/lib/server/db.ts`.
+
+- Driver: `mysql2/promise`
+- Access pattern: pooled connections via a shared singleton pool
+- Query safety: pass values as query parameters (`?`) through the `params` argument
+- Runtime guard: module is marked `server-only` and must not be imported by client components
+- Failure behavior: connection failures are mapped to `DatabaseUnavailableError` with guidance to verify local Docker and DB settings
+
 ## Safe local DB reset (project-scoped)
 
 Use this only when you intentionally want a clean local DB.
