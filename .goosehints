@@ -30,10 +30,40 @@ Implementation mode:
 - do not broaden scope beyond the issue
 - open a pull request when the issue is complete
 
-Required preflight before making any edits:
+Execution environment for this repository:
 
+- this repository is now located on the Windows filesystem
+- repository path: C:\Projects\local-task-hub
+- do not assume a Linux or WSL shell
+- do not assume POSIX commands are available
+- do not use Linux paths such as /home/... or /mnt/c/...
+- do not use WSL-specific command wrappers unless explicitly instructed
+- prefer Windows-native shell commands and path handling
+- always verify commands are compatible with the active shell before using them
+
+Command guidance:
+
+- do not assume `pwd` is available
+- do not assume commands like `ls`, `cat`, `mv`, `cp`, `rm`, `touch`, `sed`, or `grep` are available
+- prefer shell-appropriate commands, for example:
+  - `cd` for current directory in cmd-based contexts
+  - `Get-Location` in PowerShell contexts
+- use Windows path syntax when referring to files in commands
+
+Mandatory preflight before any edits:
+
+- confirm the working directory is `C:\Projects\local-task-hub`
 - confirm `node -v` works
 - confirm `npm -v` works
+- confirm `AGENTS.md` can be read
+- confirm `MVP.md` can be read
+- confirm the GitHub issue can be read successfully
+
+If shell behavior is unclear or commands are not portable:
+
+- stop and report the exact failing command
+- do not guess shell semantics
+- do not proceed with edits until command execution is reliable
 
 If any preflight check fails:
 
