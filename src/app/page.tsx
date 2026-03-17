@@ -492,11 +492,19 @@ export default async function Home({
                   <dl className="space-y-1 rounded-md border border-border bg-muted/20 p-3 text-xs">
                     <div className="flex justify-between gap-3">
                       <dt className="text-muted-foreground">Created</dt>
-                      <dd>{formatTimestamp(selectedTask.createdAt)}</dd>
+                      <dd>
+                        <time dateTime={selectedTask.createdAt.toISOString()}>
+                          {formatTimestamp(selectedTask.createdAt)}
+                        </time>
+                      </dd>
                     </div>
                     <div className="flex justify-between gap-3">
                       <dt className="text-muted-foreground">Updated</dt>
-                      <dd>{formatTimestamp(selectedTask.updatedAt)}</dd>
+                      <dd>
+                        <time dateTime={selectedTask.updatedAt.toISOString()}>
+                          {formatTimestamp(selectedTask.updatedAt)}
+                        </time>
+                      </dd>
                     </div>
                   </dl>
 
