@@ -40,6 +40,7 @@ test("task detail view persists phase 1 fields and restores after reload", async
 
   await expect(page.locator("#detailTitle")).toHaveValue(updatedTitle)
   await expect(page.locator("#detailStatus")).toHaveValue("blocked")
+  await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
   await expect(page.locator("li", { hasText: updatedTitle })).toContainText("later")
   await expect(page.locator("#detailNote")).toHaveValue("# heading\nmarkdown note")
   await expect(page.locator("#detailLinks")).toHaveValue(
