@@ -4,7 +4,11 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise"
 
 import { getDbPool } from "@/lib/server/db"
 
-type TaskStatus = "open" | "in_progress" | "blocked" | "waiting" | "review" | "done"
+const LIST_SEPARATOR = "\u001F"
+
+const TASK_STATUSES = ["open", "in_progress", "blocked", "waiting", "review", "done"] as const
+
+type TaskStatus = (typeof TASK_STATUSES)[number]
 
 export type TaskSourceType = "jira" | "gitlab" | "github" | "confluence" | "other"
 
@@ -25,6 +29,38 @@ type TaskRow = RowDataPacket & {
   updated_at: Date
 }
 
+type TaskDetailRow = RowDataPacket & {
+  id: number
+  title: string
+  status: TaskStatus
+  later: boolean
+  note: string | null
+  created_at: Date
+  updated_at: Date
+}
+
+type TaskLinkRow = RowDataPacket & {
+  id: number
+  url: string
+}
+
+type TaskTagRow = RowDataPacket & {
+  id: number
+  tag: string
+}
+
+type TaskPersonRow = RowDataPacket & {
+  id: number
+  person_reference: string
+}
+
+type TaskTimeSessionRow = RowDataPacket & {
+  id: number
+  started_at: Date
+  ended_at: Date | null
+  duration_seconds: number | null
+}
+
 export type Task = {
   id: number
   title: string
@@ -42,6 +78,27 @@ export type Task = {
   updatedAt: Date
 }
 
+export type TaskTimeSession = {
+  id: number
+  startedAt: Date
+  endedAt: Date | null
+  durationSeconds: number | null
+}
+
+export type TaskDetail = {
+  id: number
+  title: string
+  status: TaskStatus
+  later: boolean
+  note: string | null
+  links: string[]
+  tags: string[]
+  people: string[]
+  timeSessions: TaskTimeSession[]
+  createdAt: Date
+  updatedAt: Date
+}
+
 export type CreateTaskInput = {
   title: string
   note?: string
@@ -51,7 +108,25 @@ export type CreateTaskInput = {
   startTrackingNow?: boolean
 }
 
-const LIST_SEPARATOR = "\u001F"
+export type UpdateTaskDetailInput = {
+  taskId: number
+  title: string
+  status: TaskStatus
+  later: boolean
+  note?: string
+  links?: string[]
+  tags?: string[]
+  people?: string[]
+  timeSessions?: Array<{
+    startedAt: Date
+    endedAt: Date | null
+    durationSeconds: number | null
+  }>
+}
+
+function isTaskStatus(value: string): value is TaskStatus {
+  return TASK_STATUSES.includes(value as TaskStatus)
+}
 
 function parseSerializedList(value: string | null) {
   if (!value) {
@@ -194,6 +269,93 @@ export async function listTasks() {
   return rows.map(mapRow)
 }
 
+export async function getTaskDetail(taskId: number) {
+  const pool = getDbPool()
+
+  const [[taskRows], [linkRows], [tagRows], [personRows], [timeSessionRows]] = await Promise.all([
+    pool.query<TaskDetailRow[]>(
+      `
+        SELECT
+          t.id,
+          t.title,
+          t.status,
+          t.later,
+          t.note,
+          t.created_at,
+          t.updated_at
+        FROM tasks t
+        WHERE t.id = ?
+        LIMIT 1
+      `,
+      [taskId],
+    ),
+    pool.query<TaskLinkRow[]>(
+      `
+        SELECT tl.id, tl.url
+        FROM task_links tl
+        WHERE tl.task_id = ?
+        ORDER BY tl.created_at ASC, tl.id ASC
+      `,
+      [taskId],
+    ),
+    pool.query<TaskTagRow[]>(
+      `
+        SELECT tt.id, tt.tag
+        FROM task_tags tt
+        WHERE tt.task_id = ?
+        ORDER BY tt.tag ASC, tt.id ASC
+      `,
+      [taskId],
+    ),
+    pool.query<TaskPersonRow[]>(
+      `
+        SELECT tp.id, tp.person_reference
+        FROM task_person_references tp
+        WHERE tp.task_id = ?
+        ORDER BY tp.person_reference ASC, tp.id ASC
+      `,
+      [taskId],
+    ),
+    pool.query<TaskTimeSessionRow[]>(
+      `
+        SELECT
+          ts.id,
+          ts.started_at,
+          ts.ended_at,
+          ts.duration_seconds
+        FROM task_time_sessions ts
+        WHERE ts.task_id = ?
+        ORDER BY ts.started_at DESC, ts.id DESC
+      `,
+      [taskId],
+    ),
+  ])
+
+  const task = taskRows[0]
+  if (!task) {
+    return null
+  }
+
+  return {
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    later: task.later,
+    note: task.note,
+    links: linkRows.map((row) => row.url),
+    tags: tagRows.map((row) => row.tag),
+    people: personRows.map((row) => row.person_reference),
+    timeSessions: timeSessionRows.map((row) => ({
+      id: row.id,
+      startedAt: row.started_at,
+      endedAt: row.ended_at,
+      durationSeconds: row.duration_seconds,
+    })),
+    createdAt: task.created_at,
+    updatedAt: task.updated_at,
+  } satisfies TaskDetail
+}
+
 export async function createTask(input: CreateTaskInput) {
   const title = input.title.trim()
   if (!title) {
@@ -270,6 +432,138 @@ export async function createTask(input: CreateTaskInput) {
           ) VALUES (?, CURRENT_TIMESTAMP(3))
         `,
         [taskId],
+      )
+    }
+
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
+}
+
+export async function updateTaskDetail(input: UpdateTaskDetailInput) {
+  const title = input.title.trim()
+  if (!title) {
+    throw new Error("Task title is required")
+  }
+
+  if (!isTaskStatus(input.status)) {
+    throw new Error("Invalid task status")
+  }
+
+  const note = input.note?.trim() || null
+  const links = normalizeList(input.links)
+  const tags = normalizeList(input.tags)
+  const people = normalizeList(input.people)
+  const timeSessions = input.timeSessions ?? []
+
+  const pool = getDbPool()
+  const connection = await pool.getConnection()
+
+  try {
+    await connection.beginTransaction()
+
+    const [updateResult] = await connection.execute<ResultSetHeader>(
+      `
+        UPDATE tasks
+        SET
+          title = ?,
+          status = ?,
+          later = ?,
+          note = ?,
+          updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = ?
+      `,
+      [title, input.status, input.later, note, input.taskId],
+    )
+
+    if (updateResult.affectedRows === 0) {
+      throw new Error("Task not found")
+    }
+
+    await connection.execute(
+      `
+        DELETE FROM task_links
+        WHERE task_id = ?
+      `,
+      [input.taskId],
+    )
+
+    for (const link of links) {
+      await connection.execute(
+        `
+          INSERT INTO task_links (
+            task_id,
+            url,
+            source_type
+          ) VALUES (?, ?, ?)
+        `,
+        [input.taskId, link, inferSourceTypeFromUrl(link)],
+      )
+    }
+
+    await connection.execute(
+      `
+        DELETE FROM task_tags
+        WHERE task_id = ?
+      `,
+      [input.taskId],
+    )
+
+    for (const tag of tags) {
+      await connection.execute(
+        `
+          INSERT INTO task_tags (
+            task_id,
+            tag
+          ) VALUES (?, ?)
+        `,
+        [input.taskId, tag],
+      )
+    }
+
+    await connection.execute(
+      `
+        DELETE FROM task_person_references
+        WHERE task_id = ?
+      `,
+      [input.taskId],
+    )
+
+    for (const personReference of people) {
+      await connection.execute(
+        `
+          INSERT INTO task_person_references (
+            task_id,
+            person_reference
+          ) VALUES (?, ?)
+        `,
+        [input.taskId, personReference],
+      )
+    }
+
+    await connection.execute(
+      `
+        DELETE FROM task_time_sessions
+        WHERE task_id = ?
+      `,
+      [input.taskId],
+    )
+
+    for (const session of timeSessions) {
+      await connection.execute(
+        `
+          INSERT INTO task_time_sessions (
+            task_id,
+            started_at,
+            ended_at,
+            duration_seconds
+          ) VALUES (?, ?, ?, ?)
+        `,
+        [input.taskId, session.startedAt, session.endedAt, session.durationSeconds],
       )
     }
 
