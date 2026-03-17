@@ -14,7 +14,11 @@ test("task detail edit flow persists Phase 1 fields and updates task metadata", 
 
   await expect(page.getByText("Task detail").first()).toBeVisible()
 
-  const updatedAtBefore = await page.locator("#task-detail time").nth(1).getAttribute("dateTime")
+  const updatedAtRow = page
+    .locator("#task-detail dl > div")
+    .filter({ has: page.getByText("Updated", { exact: true }) })
+
+  const updatedAtBefore = await updatedAtRow.locator("time").getAttribute("dateTime")
 
   await page.locator("#detailTitle").fill(updatedTitle)
   await page.locator("#detailStatus").selectOption("blocked")
@@ -28,6 +32,7 @@ test("task detail edit flow persists Phase 1 fields and updates task metadata", 
   await page.locator("#detailLater").focus()
   await page.keyboard.press("Space")
 
+  // Intentionally wait past one second so formatted and ISO timestamps can change on save.
   await page.waitForTimeout(1100)
 
   await page.getByRole("button", { name: "Save detail" }).focus()
@@ -40,7 +45,7 @@ test("task detail edit flow persists Phase 1 fields and updates task metadata", 
   await expect(updatedCard).toContainText("#backend")
   await expect(updatedCard).toContainText("@anna")
 
-  const updatedAtAfter = await page.locator("#task-detail time").nth(1).getAttribute("dateTime")
+  const updatedAtAfter = await updatedAtRow.locator("time").getAttribute("dateTime")
   expect(updatedAtAfter).not.toEqual(updatedAtBefore)
 
   await page.reload()
