@@ -1,14 +1,10 @@
+import { revalidatePath } from "next/cache"
 import { Plus, Search } from "lucide-react"
 
+import { createTask, listTasks } from "@/lib/server/tasks"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Empty,
   EmptyContent,
@@ -18,20 +14,56 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const FILTER_CHIPS = ["Status", "Later", "Person", "Tags", "Time", "Source"]
 
-export default function Home() {
+async function createTaskAction(formData: FormData) {
+  "use server"
+
+  const title = String(formData.get("title") ?? "")
+  const note = String(formData.get("note") ?? "")
+  const firstLink = String(formData.get("firstLink") ?? "")
+  const tagsRaw = String(formData.get("tags") ?? "")
+  const peopleRaw = String(formData.get("people") ?? "")
+  const startTrackingNow = formData.get("startTrackingNow") === "on"
+
+  const tags = tagsRaw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  const people = peopleRaw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  await createTask({
+    title,
+    note,
+    firstLink,
+    tags,
+    people,
+    startTrackingNow,
+  })
+
+  revalidatePath("/")
+}
+
+export default async function Home() {
+  const tasks = await listTasks()
+
   return (
     <div className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-10">
-      <main className="grid gap-6 lg:grid-cols-[1fr_280px]">
+      <main className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <section className="space-y-6" aria-label="Task workspace">
           <Card>
             <CardHeader className="border-b border-border">
               <CardTitle className="text-xl tracking-tight">Local Task Hub</CardTitle>
               <CardDescription>
-                Desktop-first task workspace. Search, filter, and list behavior will be connected in
-                later issues.
+                Desktop-first task workspace. Search and filters are visible shell controls in this
+                issue.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -55,9 +87,11 @@ export default function Home() {
                 </div>
 
                 <div className="flex items-end">
-                  <Button type="button" className="w-full lg:w-auto">
-                    <Plus aria-hidden="true" className="size-4" />
-                    Create task
+                  <Button asChild className="w-full lg:w-auto">
+                    <a href="#quick-add">
+                      <Plus aria-hidden="true" className="size-4" />
+                      Create task
+                    </a>
                   </Button>
                 </div>
               </div>
@@ -79,41 +113,137 @@ export default function Home() {
             <CardHeader className="border-b border-border">
               <CardTitle className="text-base tracking-tight">Task list</CardTitle>
               <CardDescription>
-                This is the central region where tasks will appear once data integration is added.
+                Central task list region. Rendering is active; search/filter behavior will be wired in
+                later issues.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex min-h-[300px] items-center">
-              <Empty className="border border-dashed border-border bg-muted/20">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Search className="size-5" aria-hidden="true" />
-                  </EmptyMedia>
-                  <EmptyTitle>No tasks yet</EmptyTitle>
-                  <EmptyDescription>
-                    Start by creating your first task. When tasks exist, this list will show your
-                    latest work here.
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
-                  <Button type="button" variant="secondary">
-                    <Plus aria-hidden="true" className="size-4" />
-                    Create your first task
-                  </Button>
-                </EmptyContent>
-              </Empty>
+            <CardContent>
+              {tasks.length === 0 ? (
+                <Empty className="border border-dashed border-border bg-muted/20">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Search className="size-5" aria-hidden="true" />
+                    </EmptyMedia>
+                    <EmptyTitle>No tasks yet</EmptyTitle>
+                    <EmptyDescription>
+                      Create your first task from the Quick Add panel on the right to start your list.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    <Button asChild type="button" variant="secondary">
+                      <a href="#quick-add">
+                        <Plus aria-hidden="true" className="size-4" />
+                        Open quick add
+                      </a>
+                    </Button>
+                  </EmptyContent>
+                </Empty>
+              ) : (
+                <ul className="space-y-3">
+                  {tasks.map((task) => (
+                    <li key={task.id} className="rounded-xl border border-border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="font-medium">{task.title}</p>
+                        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                          {task.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        {task.later ? <span>later</span> : null}
+                        {task.timerStartedAt ? <span>running now</span> : null}
+                      </div>
+
+                      {task.note ? (
+                        <p className="mt-2 text-sm text-muted-foreground">{task.note}</p>
+                      ) : null}
+
+                      {task.firstLink ? (
+                        <p className="mt-2 text-xs text-muted-foreground">Link: {task.firstLink}</p>
+                      ) : null}
+
+                      {task.tags.length > 0 ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Tags: {task.tags.join(", ")}
+                        </p>
+                      ) : null}
+
+                      {task.people.length > 0 ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          People: {task.people.join(", ")}
+                        </p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </section>
 
-        <aside aria-label="Workspace notes">
+        <aside id="quick-add" aria-label="Quick add" className="lg:sticky lg:top-8 lg:self-start">
           <Card>
             <CardHeader className="border-b border-border">
-              <CardTitle className="text-base tracking-tight">Ready for integration</CardTitle>
-              <CardDescription>
-                Shell-only layout for now. Search, filters, and list results are intentionally
-                structural in this issue.
-              </CardDescription>
+              <CardTitle className="text-base tracking-tight">Quick add</CardTitle>
+              <CardDescription>Only title is required.</CardDescription>
             </CardHeader>
+            <CardContent>
+              <form action={createTaskAction} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="title" className="text-sm font-medium">
+                    Title <span className="text-destructive">*</span>
+                  </label>
+                  <Input id="title" name="title" required placeholder="Add task title" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="note" className="text-sm font-medium">
+                    Note (optional)
+                  </label>
+                  <Textarea
+                    id="note"
+                    name="note"
+                    placeholder="Short markdown-friendly note"
+                    className="min-h-24"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="firstLink" className="text-sm font-medium">
+                    First link (optional)
+                  </label>
+                  <Input
+                    id="firstLink"
+                    name="firstLink"
+                    type="url"
+                    placeholder="https://github.com/..."
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="tags" className="text-sm font-medium">
+                    First tags (optional)
+                  </label>
+                  <Input id="tags" name="tags" placeholder="bug, frontend, review" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="people" className="text-sm font-medium">
+                    First person references (optional)
+                  </label>
+                  <Input id="people" name="people" placeholder="@anna, @max" />
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox id="startTrackingNow" name="startTrackingNow" />
+                  Start time tracking now
+                </label>
+
+                <Button type="submit" className="w-full">
+                  Create task
+                </Button>
+              </form>
+            </CardContent>
           </Card>
         </aside>
       </main>
