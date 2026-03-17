@@ -5,7 +5,7 @@ test("task detail view persists phase 1 fields and restores after reload", async
   const initialTitle = `Issue7 Detail ${unique}`
   const updatedTitle = `${initialTitle} Updated`
 
-  await page.goto("http://localhost:3000/")
+  await page.goto("/")
 
   await page.getByLabel("Title *").fill(initialTitle)
   await page.getByRole("button", { name: "Create task" }).click()
@@ -40,7 +40,7 @@ test("task detail view persists phase 1 fields and restores after reload", async
 
   await expect(page.locator("#detailTitle")).toHaveValue(updatedTitle)
   await expect(page.locator("#detailStatus")).toHaveValue("blocked")
-  await expect(page.locator("#detailLater")).toHaveAttribute("data-state", "checked")
+  await expect(page.locator("li", { hasText: updatedTitle })).toContainText("later")
   await expect(page.locator("#detailNote")).toHaveValue("# heading\nmarkdown note")
   await expect(page.locator("#detailLinks")).toHaveValue(
     "https://github.com/vercel/next.js\nhttps://gitlab.com/gitlab-org/gitlab",
