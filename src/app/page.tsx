@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache"
 import { Plus, Search } from "lucide-react"
 
-import { createTask, listTasks } from "@/lib/server/tasks"
+import { createTask, listTasks, type Task, type TaskSourceType } from "@/lib/server/tasks"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +18,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 
 const FILTER_CHIPS = ["Status", "Later", "Person", "Tags", "Time", "Source"]
+
+const SOURCE_LABELS: Record<TaskSourceType, string> = {
+  jira: "Jira",
+  gitlab: "GitLab",
+  github: "GitHub",
+  confluence: "Confluence",
+  other: "Other",
+}
 
 async function createTaskAction(formData: FormData) {
   "use server"
@@ -49,6 +57,57 @@ async function createTaskAction(formData: FormData) {
   })
 
   revalidatePath("/")
+}
+
+function truncateNote(note: string, maxLength = 140) {
+  if (note.length <= maxLength) {
+    return note
+  }
+
+  return `${note.slice(0, maxLength).trimEnd()}…`
+}
+
+function formatDuration(totalSeconds: number) {
+  if (totalSeconds <= 0) {
+    return "0m"
+  }
+
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  }
+
+  return `${minutes}m`
+}
+
+function getSourceBadgeLabel(task: Task) {
+  if (!task.firstLink) {
+    return "Local"
+  }
+
+  if (!task.firstLinkSourceType) {
+    return SOURCE_LABELS.other
+  }
+
+  return SOURCE_LABELS[task.firstLinkSourceType]
+}
+
+function getTimeSummary(task: Task) {
+  if (task.timerStartedAt) {
+    return "running now"
+  }
+
+  if (task.todayTrackedSeconds > 0) {
+    return `${formatDuration(task.todayTrackedSeconds)} today`
+  }
+
+  if (task.totalTrackedSeconds > 0) {
+    return `${formatDuration(task.totalTrackedSeconds)} total`
+  }
+
+  return "no time"
 }
 
 export default async function Home() {
@@ -144,35 +203,45 @@ export default async function Home() {
                     <li key={task.id} className="rounded-xl border border-border p-3">
                       <div className="flex items-start justify-between gap-3">
                         <p className="font-medium">{task.title}</p>
-                        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                          {task.status}
-                        </span>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {task.status}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {getSourceBadgeLabel(task)}
+                          </Badge>
+                        </div>
                       </div>
 
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        {task.later ? <span>later</span> : null}
-                        {task.timerStartedAt ? <span>running now</span> : null}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {task.later ? (
+                          <Badge variant="outline" className="text-xs">
+                            later
+                          </Badge>
+                        ) : null}
+
+                        {task.tags.map((tag) => (
+                          <Badge key={`${task.id}-tag-${tag}`} variant="outline" className="text-xs">
+                            #{tag}
+                          </Badge>
+                        ))}
+
+                        {task.people.map((person) => (
+                          <Badge
+                            key={`${task.id}-person-${person}`}
+                            variant="outline"
+                            className="text-xs"
+                          >
+                            {person}
+                          </Badge>
+                        ))}
                       </div>
 
                       {task.note ? (
-                        <p className="mt-2 text-sm text-muted-foreground">{task.note}</p>
+                        <p className="mt-2 text-sm text-muted-foreground">{truncateNote(task.note)}</p>
                       ) : null}
 
-                      {task.firstLink ? (
-                        <p className="mt-2 text-xs text-muted-foreground">Link: {task.firstLink}</p>
-                      ) : null}
-
-                      {task.tags.length > 0 ? (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Tags: {task.tags.join(", ")}
-                        </p>
-                      ) : null}
-
-                      {task.people.length > 0 ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          People: {task.people.join(", ")}
-                        </p>
-                      ) : null}
+                      <p className="mt-2 text-xs text-muted-foreground">Time: {getTimeSummary(task)}</p>
                     </li>
                   ))}
                 </ul>

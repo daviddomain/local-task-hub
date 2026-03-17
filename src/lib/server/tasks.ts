@@ -6,6 +6,8 @@ import { getDbPool } from "@/lib/server/db"
 
 type TaskStatus = "open" | "in_progress" | "blocked" | "waiting" | "review" | "done"
 
+export type TaskSourceType = "jira" | "gitlab" | "github" | "confluence" | "other"
+
 type TaskRow = RowDataPacket & {
   id: number
   title: string
@@ -13,9 +15,12 @@ type TaskRow = RowDataPacket & {
   later: boolean
   note: string | null
   first_link: string | null
+  first_link_source_type: TaskSourceType | null
   tags_serialized: string | null
   people_serialized: string | null
   timer_started_at: Date | null
+  today_tracked_seconds: number | null
+  total_tracked_seconds: number | null
   created_at: Date
   updated_at: Date
 }
@@ -27,9 +32,12 @@ export type Task = {
   later: boolean
   note: string | null
   firstLink: string | null
+  firstLinkSourceType: TaskSourceType | null
   tags: string[]
   people: string[]
   timerStartedAt: Date | null
+  todayTrackedSeconds: number
+  totalTrackedSeconds: number
   createdAt: Date
   updatedAt: Date
 }
@@ -64,6 +72,36 @@ function normalizeList(values?: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
 
+function inferSourceTypeFromUrl(url: string | null): TaskSourceType {
+  if (!url) {
+    return "other"
+  }
+
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+
+    if (host.includes("atlassian.net") || host.includes("jira")) {
+      return "jira"
+    }
+
+    if (host.includes("gitlab")) {
+      return "gitlab"
+    }
+
+    if (host.includes("github")) {
+      return "github"
+    }
+
+    if (host.includes("confluence")) {
+      return "confluence"
+    }
+  } catch {
+    return "other"
+  }
+
+  return "other"
+}
+
 function mapRow(row: TaskRow): Task {
   return {
     id: row.id,
@@ -72,9 +110,12 @@ function mapRow(row: TaskRow): Task {
     later: row.later,
     note: row.note,
     firstLink: row.first_link,
+    firstLinkSourceType: row.first_link_source_type ?? inferSourceTypeFromUrl(row.first_link),
     tags: parseSerializedList(row.tags_serialized),
     people: parseSerializedList(row.people_serialized),
     timerStartedAt: row.timer_started_at,
+    todayTrackedSeconds: Number(row.today_tracked_seconds ?? 0),
+    totalTrackedSeconds: Number(row.total_tracked_seconds ?? 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -97,6 +138,13 @@ export async function listTasks() {
           LIMIT 1
         ) AS first_link,
         (
+          SELECT tl.source_type
+          FROM task_links tl
+          WHERE tl.task_id = t.id
+          ORDER BY tl.created_at ASC, tl.id ASC
+          LIMIT 1
+        ) AS first_link_source_type,
+        (
           SELECT GROUP_CONCAT(tt.tag ORDER BY tt.tag SEPARATOR ?)
           FROM task_tags tt
           WHERE tt.task_id = t.id
@@ -113,6 +161,28 @@ export async function listTasks() {
           ORDER BY ts.started_at DESC, ts.id DESC
           LIMIT 1
         ) AS timer_started_at,
+        (
+          SELECT COALESCE(
+            SUM(
+              CASE
+                WHEN ts.started_at >= CURRENT_DATE()
+                  THEN COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, CURRENT_TIMESTAMP(3)))
+                ELSE 0
+              END
+            ),
+            0
+          )
+          FROM task_time_sessions ts
+          WHERE ts.task_id = t.id
+        ) AS today_tracked_seconds,
+        (
+          SELECT COALESCE(
+            SUM(COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, CURRENT_TIMESTAMP(3)))),
+            0
+          )
+          FROM task_time_sessions ts
+          WHERE ts.task_id = t.id
+        ) AS total_tracked_seconds,
         t.created_at,
         t.updated_at
       FROM tasks t
