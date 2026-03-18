@@ -127,6 +127,7 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
 
   const title = String(formData.get("detailTitle") ?? "")
   const status = String(formData.get("detailStatus") ?? "")
+  const statusTransition = String(formData.get("detailStatusTransition") ?? "")
   const later = formData.get("detailLater") === "on"
   const note = String(formData.get("detailNote") ?? "")
   const linksRaw = String(formData.get("detailLinks") ?? "")
@@ -138,7 +139,13 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
     throw new Error("Invalid status")
   }
 
-  const statusValue = status as (typeof STATUS_OPTIONS)[number]
+  let statusValue = status as (typeof STATUS_OPTIONS)[number]
+
+  if (statusTransition === "done") {
+    statusValue = "done"
+  } else if (statusTransition === "reopen") {
+    statusValue = "open"
+  }
 
   await updateTaskDetail({
     taskId,
@@ -508,10 +515,19 @@ export default async function Home({
                     </div>
                   </dl>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button type="submit" className="flex-1">
                       Save detail
                     </Button>
+                    {selectedTask.status === "done" ? (
+                      <Button type="submit" name="detailStatusTransition" value="reopen" variant="secondary">
+                        Reopen task
+                      </Button>
+                    ) : (
+                      <Button type="submit" name="detailStatusTransition" value="done" variant="secondary">
+                        Mark done
+                      </Button>
+                    )}
                     <Button asChild type="button" variant="outline">
                       <Link href="/">Close</Link>
                     </Button>
