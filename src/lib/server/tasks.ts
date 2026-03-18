@@ -239,16 +239,21 @@ export async function listTasks() {
         (
           SELECT COALESCE(
             SUM(
-              CASE
-                WHEN ts.started_at >= CURRENT_DATE()
-                  THEN COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3))))
-                ELSE 0
-              END
+              GREATEST(
+                0,
+                TIMESTAMPDIFF(
+                  SECOND,
+                  GREATEST(ts.started_at, CURRENT_DATE()),
+                  LEAST(COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3)), CURRENT_TIMESTAMP(3))
+                )
+              )
             ),
             0
           )
           FROM task_time_sessions ts
           WHERE ts.task_id = t.id
+            AND COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3)) > CURRENT_DATE()
+            AND ts.started_at < CURRENT_TIMESTAMP(3)
         ) AS today_tracked_seconds,
         (
           SELECT COALESCE(
