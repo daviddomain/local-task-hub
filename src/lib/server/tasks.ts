@@ -559,6 +559,14 @@ export async function updateTaskDetail(input: UpdateTaskDetailInput) {
     )
 
     for (const session of timeSessions) {
+      if (session.endedAt && session.endedAt.getTime() < session.startedAt.getTime()) {
+        throw new Error("Invalid time session: endedAt must be after startedAt")
+      }
+
+      const durationSeconds = session.endedAt
+        ? Math.max(0, Math.floor((session.endedAt.getTime() - session.startedAt.getTime()) / 1000))
+        : null
+
       await connection.execute(
         `
           INSERT INTO task_time_sessions (
@@ -568,7 +576,7 @@ export async function updateTaskDetail(input: UpdateTaskDetailInput) {
             duration_seconds
           ) VALUES (?, ?, ?, ?)
         `,
-        [input.taskId, session.startedAt, session.endedAt, session.durationSeconds],
+        [input.taskId, session.startedAt, session.endedAt, durationSeconds],
       )
     }
 
