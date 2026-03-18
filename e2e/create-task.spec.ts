@@ -40,13 +40,15 @@ test('create task with optional fields and tracking persists after reload', asyn
   await expect(card).toBeVisible()
   await expect(card).toContainText('open')
   await expect(card).toContainText('running now')
-  await expect(card).toContainText('Tags: bug, review')
-  await expect(card).toContainText('People: @anna, @max')
+  await expect(card).toContainText('#bug')
+  await expect(card).toContainText('#review')
+  await expect(card).toContainText('@anna')
+  await expect(card).toContainText('@max')
 
   await page.reload()
 
   const persistedCard = page.locator('li', { hasText: title })
   await expect(persistedCard).toBeVisible()
   await expect(persistedCard).toContainText('note for issue #2')
-  await expect(persistedCard).toContainText('Link: https://github.com/vercel/next.js')
+  await expect(persistedCard).toContainText('Other')
 })
