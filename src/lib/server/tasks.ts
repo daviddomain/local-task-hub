@@ -241,7 +241,7 @@ export async function listTasks() {
             SUM(
               CASE
                 WHEN ts.started_at >= CURRENT_DATE()
-                  THEN COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, CURRENT_TIMESTAMP(3)))
+                  THEN COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3))))
                 ELSE 0
               END
             ),
@@ -252,7 +252,7 @@ export async function listTasks() {
         ) AS today_tracked_seconds,
         (
           SELECT COALESCE(
-            SUM(COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, CURRENT_TIMESTAMP(3)))),
+            SUM(COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3))))),
             0
           )
           FROM task_time_sessions ts
