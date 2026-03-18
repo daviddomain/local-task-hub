@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { Plus, Search } from "lucide-react"
+import { Play, Plus, Search, Square } from "lucide-react"
 
 import {
   createTask,
@@ -12,6 +12,11 @@ import {
   type TaskDetail,
   type TaskSourceType,
 } from "@/lib/server/tasks"
+import {
+  getTodayTotalTrackedSeconds,
+  startTaskTimeTracking,
+  stopTaskTimeTracking,
+} from "@/lib/server/time-tracking"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -72,6 +77,30 @@ async function createTaskAction(formData: FormData) {
   revalidatePath("/")
 }
 
+async function startTrackingAction(formData: FormData) {
+  "use server"
+
+  const taskId = Number.parseInt(String(formData.get("taskId") ?? ""), 10)
+  if (Number.isNaN(taskId)) {
+    throw new Error("Invalid task id")
+  }
+
+  await startTaskTimeTracking(taskId)
+  revalidatePath("/")
+}
+
+async function stopTrackingAction(formData: FormData) {
+  "use server"
+
+  const taskId = Number.parseInt(String(formData.get("taskId") ?? ""), 10)
+  if (Number.isNaN(taskId)) {
+    throw new Error("Invalid task id")
+  }
+
+  await stopTaskTimeTracking(taskId)
+  revalidatePath("/")
+}
+
 function parseListInput(value: string, separator: "," | "\n") {
   return value
     .split(separator)
@@ -114,10 +143,14 @@ function parseTimeSessionsInput(value: string) {
         throw new Error(`Invalid duration_seconds value in time sessions: ${durationRaw}`)
       }
 
+      const normalizedDurationSeconds = endedAt
+        ? durationSeconds ?? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000))
+        : durationSeconds
+
       return {
         startedAt,
         endedAt,
-        durationSeconds,
+        durationSeconds: normalizedDurationSeconds,
       }
     })
 }
@@ -198,20 +231,12 @@ function getSourceBadgeLabel(task: Task) {
   return SOURCE_LABELS[task.firstLinkSourceType]
 }
 
-function getTimeSummary(task: Task) {
-  if (task.timerStartedAt) {
-    return "running now"
-  }
+function getTaskTodayLabel(task: Task) {
+  return task.todayTrackedSeconds > 0 ? formatDuration(task.todayTrackedSeconds) : "0m"
+}
 
-  if (task.todayTrackedSeconds > 0) {
-    return `${formatDuration(task.todayTrackedSeconds)} today`
-  }
-
-  if (task.totalTrackedSeconds > 0) {
-    return `${formatDuration(task.totalTrackedSeconds)} total`
-  }
-
-  return "no time"
+function getTaskTotalLabel(task: Task) {
+  return task.totalTrackedSeconds > 0 ? formatDuration(task.totalTrackedSeconds) : "0m"
 }
 
 function formatTimestamp(value: Date) {
@@ -231,6 +256,7 @@ export default async function Home({
 
   const tasks = await listTasks()
   const selectedTask = Number.isNaN(selectedTaskId) ? null : await getTaskDetail(selectedTaskId)
+  const todayTotalTrackedSeconds = await getTodayTotalTrackedSeconds()
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-10">
@@ -273,6 +299,13 @@ export default async function Home({
                   </Button>
                 </div>
               </div>
+
+              <p className="text-sm text-muted-foreground">
+                Today total tracked:{" "}
+                <span className="font-medium text-foreground">
+                  {formatDuration(todayTotalTrackedSeconds)}
+                </span>
+              </p>
 
               <fieldset className="space-y-2" aria-label="Task filters">
                 <legend className="text-sm font-medium">Filters</legend>
@@ -375,7 +408,27 @@ export default async function Home({
                           <p className="mt-2 text-sm text-muted-foreground">{truncateNote(task.note)}</p>
                         ) : null}
 
-                        <p className="mt-2 text-xs text-muted-foreground">Time: {getTimeSummary(task)}</p>
+                        <div className="mt-2 space-y-2">
+                          <p className="text-xs text-muted-foreground">
+                            {task.timerStartedAt ? "Running now" : "Stopped"} · Today: {getTaskTodayLabel(task)} ·
+                            {" "}
+                            Total: {getTaskTotalLabel(task)}
+                          </p>
+                          <form action={task.timerStartedAt ? stopTrackingAction : startTrackingAction}>
+                            <input type="hidden" name="taskId" value={task.id} />
+                            {task.timerStartedAt ? (
+                              <Button type="submit" size="sm" variant="secondary">
+                                <Square aria-hidden="true" className="size-3.5" />
+                                Stop tracking
+                              </Button>
+                            ) : (
+                              <Button type="submit" size="sm" variant="outline">
+                                <Play aria-hidden="true" className="size-3.5" />
+                                Start tracking
+                              </Button>
+                            )}
+                          </form>
+                        </div>
                       </li>
                     )
                   })}
@@ -385,7 +438,10 @@ export default async function Home({
           </Card>
         </section>
 
-        <aside className="space-y-6 lg:sticky lg:top-8 lg:self-start" aria-label="Task detail and quick add">
+        <aside
+          className="space-y-6 lg:sticky lg:top-8 lg:self-start"
+          aria-label="Task detail and quick add"
+        >
           <Card id="task-detail">
             <CardHeader className="border-b border-border">
               <CardTitle className="text-base tracking-tight">Task detail</CardTitle>
@@ -576,12 +632,7 @@ export default async function Home({
                   <label htmlFor="firstLink" className="text-sm font-medium">
                     First link (optional)
                   </label>
-                  <Input
-                    id="firstLink"
-                    name="firstLink"
-                    type="url"
-                    placeholder="https://github.com/..."
-                  />
+                  <Input id="firstLink" name="firstLink" type="url" placeholder="https://github.com/..." />
                 </div>
 
                 <div className="space-y-1.5">

@@ -239,20 +239,25 @@ export async function listTasks() {
         (
           SELECT COALESCE(
             SUM(
-              CASE
-                WHEN ts.started_at >= CURRENT_DATE()
-                  THEN COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, CURRENT_TIMESTAMP(3)))
-                ELSE 0
-              END
+              GREATEST(
+                0,
+                TIMESTAMPDIFF(
+                  SECOND,
+                  GREATEST(ts.started_at, CURRENT_DATE()),
+                  LEAST(COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3)), CURRENT_TIMESTAMP(3))
+                )
+              )
             ),
             0
           )
           FROM task_time_sessions ts
           WHERE ts.task_id = t.id
+            AND COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3)) > CURRENT_DATE()
+            AND ts.started_at < CURRENT_TIMESTAMP(3)
         ) AS today_tracked_seconds,
         (
           SELECT COALESCE(
-            SUM(COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, CURRENT_TIMESTAMP(3)))),
+            SUM(COALESCE(ts.duration_seconds, TIMESTAMPDIFF(SECOND, ts.started_at, COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3))))),
             0
           )
           FROM task_time_sessions ts
@@ -554,6 +559,14 @@ export async function updateTaskDetail(input: UpdateTaskDetailInput) {
     )
 
     for (const session of timeSessions) {
+      if (session.endedAt && session.endedAt.getTime() < session.startedAt.getTime()) {
+        throw new Error("Invalid time session: endedAt must be after startedAt")
+      }
+
+      const durationSeconds = session.endedAt
+        ? Math.max(0, Math.floor((session.endedAt.getTime() - session.startedAt.getTime()) / 1000))
+        : null
+
       await connection.execute(
         `
           INSERT INTO task_time_sessions (
@@ -563,7 +576,7 @@ export async function updateTaskDetail(input: UpdateTaskDetailInput) {
             duration_seconds
           ) VALUES (?, ?, ?, ?)
         `,
-        [input.taskId, session.startedAt, session.endedAt, session.durationSeconds],
+        [input.taskId, session.startedAt, session.endedAt, durationSeconds],
       )
     }
 

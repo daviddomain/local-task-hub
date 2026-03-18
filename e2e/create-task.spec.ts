@@ -12,7 +12,7 @@ test('create task with title only persists and renders in list', async ({ page }
   const card = page.locator('li', { hasText: title })
   await expect(card).toBeVisible()
   await expect(card).toContainText('open')
-  await expect(card).not.toContainText('running now')
+  await expect(card).not.toContainText('Running now')
 
   await page.reload()
 
@@ -39,7 +39,7 @@ test('create task with optional fields and tracking persists after reload', asyn
   const card = page.locator('li', { hasText: title })
   await expect(card).toBeVisible()
   await expect(card).toContainText('open')
-  await expect(card).toContainText('running now')
+  await expect(card).toContainText('Running now')
   await expect(card).toContainText('#bug')
   await expect(card).toContainText('#review')
   await expect(card).toContainText('@anna')
