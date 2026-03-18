@@ -80,6 +80,7 @@ export async function stopTaskTimeTracking(taskId: number) {
           AND ts.ended_at IS NULL
         ORDER BY ts.started_at DESC, ts.id DESC
         LIMIT 1
+        FOR UPDATE
       `,
       [taskId],
     )
@@ -87,25 +88,28 @@ export async function stopTaskTimeTracking(taskId: number) {
     const runningSession = runningSessionRows[0]
 
     if (runningSession) {
-      await connection.execute(
+      const [stopResult] = await connection.execute<ResultSetHeader>(
         `
           UPDATE task_time_sessions
           SET
             ended_at = CURRENT_TIMESTAMP(3),
             duration_seconds = TIMESTAMPDIFF(SECOND, started_at, CURRENT_TIMESTAMP(3))
           WHERE id = ?
+            AND ended_at IS NULL
         `,
         [runningSession.id],
       )
 
-      await connection.execute(
-        `
-          UPDATE tasks
-          SET updated_at = CURRENT_TIMESTAMP(3)
-          WHERE id = ?
-        `,
-        [taskId],
-      )
+      if (stopResult.affectedRows > 0) {
+        await connection.execute(
+          `
+            UPDATE tasks
+            SET updated_at = CURRENT_TIMESTAMP(3)
+            WHERE id = ?
+          `,
+          [taskId],
+        )
+      }
     }
 
     await connection.commit()
