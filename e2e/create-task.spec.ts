@@ -52,3 +52,37 @@ test('create task with optional fields and tracking persists after reload', asyn
   await expect(persistedCard).toContainText('note for issue #2')
   await expect(persistedCard).toContainText('Other')
 })
+
+test('open task detail, edit task, and persist detail changes after reload', async ({ page }) => {
+  const unique = Date.now().toString()
+  const initialTitle = `Issue13 Task ${unique}`
+  const updatedTitle = `${initialTitle} Updated`
+
+  await page.goto('/')
+
+  await page.getByLabel('Title *').fill(initialTitle)
+  await page.getByRole('button', { name: 'Create task' }).click()
+
+  await page.getByRole('link', { name: initialTitle }).click()
+
+  await expect(page.getByText('Task detail').first()).toBeVisible()
+  await expect(page.locator('#detailTitle')).toHaveValue(initialTitle)
+
+  await page.locator('#detailTitle').fill(updatedTitle)
+  await page.locator('#detailStatus').selectOption('blocked')
+  await page.locator('#detailNote').fill('Updated detail note')
+
+  await page.getByRole('button', { name: 'Save detail' }).click()
+
+  const updatedCard = page.locator('li', { hasText: updatedTitle })
+  await expect(updatedCard).toBeVisible()
+  await expect(updatedCard).toContainText('blocked')
+  await expect(updatedCard).toContainText('Updated detail note')
+
+  await page.reload()
+  await page.getByRole('link', { name: updatedTitle }).click()
+
+  await expect(page.locator('#detailTitle')).toHaveValue(updatedTitle)
+  await expect(page.locator('#detailStatus')).toHaveValue('blocked')
+  await expect(page.locator('#detailNote')).toHaveValue('Updated detail note')
+})
