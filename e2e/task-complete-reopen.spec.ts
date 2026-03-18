@@ -31,6 +31,14 @@ test("mark task done and reopen persists status while preserving later flag", as
   await expect(page.locator("#detailStatus")).toHaveValue("done")
   await expect(page.getByRole("button", { name: "Reopen task" })).toBeVisible()
 
+  await page.reload()
+  await page.getByRole("link", { name: title }).click()
+
+  await expect(card).toContainText("done")
+  await expect(card).toContainText("later")
+  await expect(page.locator("#detailStatus")).toHaveValue("done")
+  await expect(page.getByRole("button", { name: "Reopen task" })).toBeVisible()
+
   await page.getByRole("button", { name: "Reopen task" }).click()
 
   await expect(card).toContainText("open")
