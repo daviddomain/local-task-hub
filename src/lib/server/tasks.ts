@@ -12,6 +12,18 @@ type TaskStatus = (typeof TASK_STATUSES)[number]
 
 export type TaskSourceType = "jira" | "gitlab" | "github" | "confluence" | "other"
 
+export type TaskTimeRelationFilter = "today" | "this_week" | "no_time" | "recently_updated"
+
+export type TaskListFilters = {
+  query?: string
+  status?: TaskStatus
+  later?: "only" | "exclude"
+  person?: string
+  tag?: string
+  timeRelation?: TaskTimeRelationFilter
+  source?: TaskSourceType
+}
+
 type TaskRow = RowDataPacket & {
   id: number
   title: string
@@ -196,7 +208,131 @@ function mapRow(row: TaskRow): Task {
   }
 }
 
-export async function listTasks() {
+export async function listTasks(filters: TaskListFilters = {}) {
+  const whereClauses: string[] = []
+  const params: Array<string | number | boolean | Date | null> = [LIST_SEPARATOR, LIST_SEPARATOR]
+
+  const query = filters.query?.trim()
+  if (query) {
+    const searchPattern = `%${query}%`
+    whereClauses.push(
+      `(
+        t.title LIKE ?
+        OR COALESCE(t.note, '') LIKE ?
+        OR EXISTS (
+          SELECT 1
+          FROM task_tags tt_search
+          WHERE tt_search.task_id = t.id
+            AND tt_search.tag LIKE ?
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM task_person_references tp_search
+          WHERE tp_search.task_id = t.id
+            AND tp_search.person_reference LIKE ?
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM task_links tl_search
+          WHERE tl_search.task_id = t.id
+            AND tl_search.url LIKE ?
+        )
+      )`,
+    )
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+  }
+
+  if (filters.status && isTaskStatus(filters.status)) {
+    whereClauses.push("t.status = ?")
+    params.push(filters.status)
+  }
+
+  if (filters.later === "only") {
+    whereClauses.push("t.later = TRUE")
+  }
+
+  if (filters.later === "exclude") {
+    whereClauses.push("t.later = FALSE")
+  }
+
+  const person = filters.person?.trim()
+  if (person) {
+    whereClauses.push(
+      `EXISTS (
+        SELECT 1
+        FROM task_person_references tp_filter
+        WHERE tp_filter.task_id = t.id
+          AND tp_filter.person_reference = ?
+      )`,
+    )
+    params.push(person)
+  }
+
+  const tag = filters.tag?.trim()
+  if (tag) {
+    whereClauses.push(
+      `EXISTS (
+        SELECT 1
+        FROM task_tags tt_filter
+        WHERE tt_filter.task_id = t.id
+          AND tt_filter.tag = ?
+      )`,
+    )
+    params.push(tag)
+  }
+
+  if (filters.source) {
+    whereClauses.push(
+      `EXISTS (
+        SELECT 1
+        FROM task_links tl_filter
+        WHERE tl_filter.task_id = t.id
+          AND tl_filter.source_type = ?
+      )`,
+    )
+    params.push(filters.source)
+  }
+
+  switch (filters.timeRelation) {
+    case "today":
+      whereClauses.push(
+        `EXISTS (
+          SELECT 1
+          FROM task_time_sessions ts_today
+          WHERE ts_today.task_id = t.id
+            AND COALESCE(ts_today.ended_at, CURRENT_TIMESTAMP(3)) > CURRENT_DATE()
+            AND ts_today.started_at < CURRENT_TIMESTAMP(3)
+        )`,
+      )
+      break
+    case "this_week":
+      whereClauses.push(
+        `EXISTS (
+          SELECT 1
+          FROM task_time_sessions ts_week
+          WHERE ts_week.task_id = t.id
+            AND COALESCE(ts_week.ended_at, CURRENT_TIMESTAMP(3)) >= DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY)
+            AND ts_week.started_at < DATE_ADD(DATE_SUB(CURRENT_DATE(), INTERVAL WEEKDAY(CURRENT_DATE()) DAY), INTERVAL 7 DAY)
+        )`,
+      )
+      break
+    case "no_time":
+      whereClauses.push(
+        `NOT EXISTS (
+          SELECT 1
+          FROM task_time_sessions ts_none
+          WHERE ts_none.task_id = t.id
+        )`,
+      )
+      break
+    case "recently_updated":
+      whereClauses.push("t.updated_at >= DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL 7 DAY)")
+      break
+    default:
+      break
+  }
+
+  const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : ""
   const [rows] = await getDbPool().query<TaskRow[]>(
     `
       SELECT
@@ -266,9 +402,10 @@ export async function listTasks() {
         t.created_at,
         t.updated_at
       FROM tasks t
+      ${whereSql}
       ORDER BY t.updated_at DESC, t.id DESC
     `,
-    [LIST_SEPARATOR, LIST_SEPARATOR],
+    params,
   )
 
   return rows.map(mapRow)
@@ -395,10 +532,11 @@ export async function createTask(input: CreateTaskInput) {
         `
           INSERT INTO task_links (
             task_id,
-            url
-          ) VALUES (?, ?)
+            url,
+            source_type
+          ) VALUES (?, ?, ?)
         `,
-        [taskId, firstLink],
+        [taskId, firstLink, inferSourceTypeFromUrl(firstLink)],
       )
     }
 
