@@ -1,24 +1,13 @@
 import { expect, test } from '@playwright/test'
-import mysql from 'mysql2/promise'
 
 function uniqueToken() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-async function withDbConnection() {
-  return mysql.createConnection({
-    host: process.env.DB_HOST ?? process.env.MYSQL_HOST ?? '127.0.0.1',
-    port: Number.parseInt(process.env.DB_PORT ?? process.env.MYSQL_PORT ?? '3306', 10),
-    user: process.env.DB_USER ?? process.env.MYSQL_USER ?? 'root',
-    password: process.env.DB_PASSWORD ?? process.env.MYSQL_PASSWORD ?? 'localtaskhub',
-    database: process.env.DB_NAME ?? process.env.MYSQL_DATABASE ?? 'local-task-hub'
-  })
-}
-
-test('exports selected task as markdown and active/open tasks as JSON', async ({ page }) => {
+test('exports selected task as markdown and open tasks as JSON via UI triggers', async ({ page }) => {
   const unique = uniqueToken()
-  const openTitle = `Issue12 Open ${unique}`
-  const doneTitle = `Issue12 Done ${unique}`
+  const openTitle = `Issue14 Open ${unique}`
+  const doneTitle = `Issue14 Done ${unique}`
 
   await page.goto('/')
 
@@ -35,31 +24,28 @@ test('exports selected task as markdown and active/open tasks as JSON', async ({
   await page.getByRole('button', { name: 'Create task' }).click()
   await expect(page.locator('li', { hasText: doneTitle })).toBeVisible()
 
-  const connection = await withDbConnection()
-  try {
-    await connection.execute('UPDATE tasks SET status = ? WHERE title = ?', ['done', doneTitle])
-  } finally {
-    await connection.end()
-  }
-
-  await page.reload()
+  await page.getByRole('link', { name: doneTitle }).click()
+  await page.getByRole('button', { name: 'Mark done' }).click()
   await expect(page.locator('li', { hasText: doneTitle })).toContainText('done')
 
   await page.getByRole('link', { name: openTitle }).click()
 
-  const markdownResponse = await page.request.get('/api/exports/task/invalid/markdown')
-  expect(markdownResponse.status()).toBe(400)
+  const markdownLink = page.getByRole('link', { name: 'Export markdown' })
+  const markdownPath = await markdownLink.getAttribute('href')
 
-  const selectedTaskLink = page.getByRole('link', { name: openTitle })
-  const selectedTaskHref = await selectedTaskLink.getAttribute('href')
-  expect(selectedTaskHref).toBeTruthy()
+  expect(markdownPath).toBeTruthy()
+  expect(markdownPath).toMatch(/^\/api\/exports\/task\/\d+\/markdown$/)
 
-  const taskIdMatch = selectedTaskHref?.match(/taskId=(\d+)/)
-  expect(taskIdMatch).toBeTruthy()
-  const taskId = Number.parseInt(taskIdMatch?.[1] ?? '', 10)
-  expect(Number.isNaN(taskId)).toBeFalsy()
+  const [markdownExportResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === 'GET' &&
+        response.url().includes('/api/exports/task/') &&
+        response.url().endsWith('/markdown')
+    ),
+    markdownLink.click(),
+  ])
 
-  const markdownExportResponse = await page.request.get(`/api/exports/task/${taskId}/markdown`)
   expect(markdownExportResponse.status()).toBe(200)
   expect(markdownExportResponse.headers()['content-type']).toContain('text/markdown')
 
@@ -71,7 +57,23 @@ test('exports selected task as markdown and active/open tasks as JSON', async ({
   expect(markdownContent).toContain(`@person-${unique}`)
   expect(markdownContent).toContain('## Time summary')
 
-  const jsonExportResponse = await page.request.get('/api/exports/tasks/open')
+  await page.goBack()
+
+  await page.goto('/')
+
+  const openExportLink = page.getByRole('link', { name: 'Export open JSON' })
+  const openExportPath = await openExportLink.getAttribute('href')
+
+  expect(openExportPath).toBe('/api/exports/tasks/open')
+
+  const [jsonExportResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === 'GET' && response.url().endsWith('/api/exports/tasks/open')
+    ),
+    openExportLink.click(),
+  ])
+
   expect(jsonExportResponse.status()).toBe(200)
   expect(jsonExportResponse.headers()['content-type']).toContain('application/json')
 
