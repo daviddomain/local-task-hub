@@ -50,7 +50,7 @@ test('create task with optional fields and tracking persists after reload', asyn
   const persistedCard = page.locator('li', { hasText: title })
   await expect(persistedCard).toBeVisible()
   await expect(persistedCard).toContainText('note for issue #2')
-  await expect(persistedCard).toContainText('Other')
+  await expect(persistedCard).toContainText('GitHub')
 })
 
 test('open task detail, edit task, and persist detail changes after reload', async ({ page }) => {
