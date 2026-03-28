@@ -287,10 +287,24 @@ export async function listTasks(filters: TaskListFilters = {}) {
         SELECT 1
         FROM task_links tl_filter
         WHERE tl_filter.task_id = t.id
-          AND tl_filter.source_type = ?
+          AND (
+            tl_filter.source_type = ?
+            OR (
+              (tl_filter.source_type IS NULL OR tl_filter.source_type = 'other')
+              AND (
+                CASE
+                  WHEN LOWER(tl_filter.url) LIKE '%atlassian.net%' OR LOWER(tl_filter.url) LIKE '%jira%' THEN 'jira'
+                  WHEN LOWER(tl_filter.url) LIKE '%gitlab%' THEN 'gitlab'
+                  WHEN LOWER(tl_filter.url) LIKE '%github%' THEN 'github'
+                  WHEN LOWER(tl_filter.url) LIKE '%confluence%' THEN 'confluence'
+                  ELSE 'other'
+                END
+              ) = ?
+            )
+          )
       )`,
     )
-    params.push(filters.source)
+    params.push(filters.source, filters.source)
   }
 
   switch (filters.timeRelation) {
