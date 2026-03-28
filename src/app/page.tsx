@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { Play, Plus, Search, Square } from 'lucide-react';
+import { Download, Play, Plus, Search, Square } from 'lucide-react';
 
 import {
   createTask,
@@ -403,11 +403,17 @@ export default async function Home({
                   <TaskSearchInput />
                 </div>
 
-                <div className='flex items-end'>
+                <div className='flex flex-wrap items-end gap-2'>
                   <Button asChild className='w-full lg:w-auto'>
                     <a href='#quick-add'>
                       <Plus aria-hidden='true' className='size-4' />
                       Create task
+                    </a>
+                  </Button>
+                  <Button asChild variant='outline' className='w-full lg:w-auto'>
+                    <a href='/api/exports/tasks/open'>
+                      <Download aria-hidden='true' className='size-4' />
+                      Export open JSON
                     </a>
                   </Button>
                 </div>
@@ -798,6 +804,12 @@ export default async function Home({
                   <div className='flex flex-wrap gap-2'>
                     <Button type='submit' className='flex-1'>
                       Save detail
+                    </Button>
+                    <Button asChild type='button' variant='outline'>
+                      <a href={`/api/exports/task/${selectedTask.id}/markdown`}>
+                        <Download aria-hidden='true' className='size-4' />
+                        Export markdown
+                      </a>
                     </Button>
                     {selectedTask.status === 'done' ? (
                       <Button
