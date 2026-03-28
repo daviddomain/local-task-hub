@@ -32,12 +32,18 @@ test('live search and combinable filters work with persisted data', async ({ pag
   await page.getByLabel('First person references (optional)').fill(personToken)
   await page.getByRole('button', { name: 'Create task' }).click()
 
+  const targetCard = page.locator('li', { hasText: targetTitle })
+  await expect(targetCard).toBeVisible()
+
   await page.getByLabel('Title *').fill(otherTitle)
   await page.getByLabel('Note (optional)').fill(`other-${unique}`)
   await page.getByLabel('First link (optional)').fill(`https://example.com/${unique}`)
   await page.getByLabel('First tags (optional)').fill(otherTagToken)
   await page.getByLabel('First person references (optional)').fill(`@other-${unique}`)
   await page.getByRole('button', { name: 'Create task' }).click()
+
+  const otherCard = page.locator('li', { hasText: otherTitle })
+  await expect(otherCard).toBeVisible()
 
   // Simulate legacy persisted data where known-source URL exists but source_type stayed at fallback 'other'.
   const connection = await withDbConnection()
@@ -64,8 +70,6 @@ test('live search and combinable filters work with persisted data', async ({ pag
 
   await page.reload()
 
-  const targetCard = page.locator('li', { hasText: targetTitle })
-  const otherCard = page.locator('li', { hasText: otherTitle })
   await expect(targetCard).toBeVisible()
 
   const searchInput = page.locator('#task-search')
