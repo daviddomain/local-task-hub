@@ -69,7 +69,9 @@ test('open task detail, edit task, and persist detail changes after reload', asy
   await expect(page.locator('#detailTitle')).toHaveValue(initialTitle)
 
   await page.locator('#detailTitle').fill(updatedTitle)
-  await page.locator('#detailStatus').selectOption('blocked')
+  const statusTrigger = page.locator("#detailStatus")
+  await statusTrigger.click()
+  await page.getByRole("option", { name: "blocked" }).click()
   await page.locator('#detailNote').fill('Updated detail note')
 
   await page.getByRole('button', { name: 'Save detail' }).click()
@@ -83,6 +85,7 @@ test('open task detail, edit task, and persist detail changes after reload', asy
   await page.getByRole('link', { name: updatedTitle }).click()
 
   await expect(page.locator('#detailTitle')).toHaveValue(updatedTitle)
-  await expect(page.locator('#detailStatus')).toHaveValue('blocked')
+  await expect(page.locator("#detailStatus")).toContainText("blocked")
   await expect(page.locator('#detailNote')).toHaveValue('Updated detail note')
 })
+

@@ -21,14 +21,14 @@ test("mark task done and reopen persists status while preserving later flag", as
   await page.getByRole("button", { name: "Save detail" }).click()
 
   await expect(card).toContainText("later")
-  await expect(page.locator("#detailStatus")).toHaveValue("open")
+  await expect(page.locator("#detailStatus")).toContainText("open")
   await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
 
   await page.getByRole("button", { name: "Mark done" }).click()
 
   await expect(card).toContainText("done")
   await expect(card).toContainText("later")
-  await expect(page.locator("#detailStatus")).toHaveValue("done")
+  await expect(page.locator("#detailStatus")).toContainText("done")
   await expect(page.getByRole("button", { name: "Reopen task" })).toBeVisible()
 
   await page.reload()
@@ -36,14 +36,14 @@ test("mark task done and reopen persists status while preserving later flag", as
 
   await expect(card).toContainText("done")
   await expect(card).toContainText("later")
-  await expect(page.locator("#detailStatus")).toHaveValue("done")
+  await expect(page.locator("#detailStatus")).toContainText("done")
   await expect(page.getByRole("button", { name: "Reopen task" })).toBeVisible()
 
   await page.getByRole("button", { name: "Reopen task" }).click()
 
   await expect(card).toContainText("open")
   await expect(card).toContainText("later")
-  await expect(page.locator("#detailStatus")).toHaveValue("open")
+  await expect(page.locator("#detailStatus")).toContainText("open")
   await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
 
   await page.reload()
@@ -53,6 +53,7 @@ test("mark task done and reopen persists status while preserving later flag", as
   await expect(persistedCard).toBeVisible()
   await expect(persistedCard).toContainText("open")
   await expect(persistedCard).toContainText("later")
-  await expect(page.locator("#detailStatus")).toHaveValue("open")
+  await expect(page.locator("#detailStatus")).toContainText("open")
   await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
 })
+
