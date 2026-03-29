@@ -57,14 +57,57 @@ Docker command guidance:
 - avoid nested shell quoting chains
 - for MySQL checks, call `mysql` directly inside the container instead of invoking an intermediate shell
 
-Mandatory preflight before any edits:
+Preflight before doing anything else.
 
-- confirm the working directory is `C:\Projects\local-task-hub`
-- confirm `node -v` works
-- confirm `npm -v` works
-- confirm `AGENTS.md` can be read
-- confirm `MVP.md` can be read
-- confirm the GitHub issue can be read successfully
+Determine the task mode from this prompt:
+
+- Mode A: issue creation only
+- Mode B: issue implementation
+
+For both modes:
+
+1. Run `git remote get-url origin`
+   - it must point to the daviddomain/local-task-hub repository
+
+2. Run `git rev-parse --show-toplevel`
+   - it must resolve to the local-task-hub repository root
+   - accept either slash style, for example:
+     - `C:\Projects\local-task-hub`
+     - `C:/Projects/local-task-hub`
+
+3. Do not use `Get-Location` for working-directory verification.
+
+4. Only stop if the required checks for the active mode fail.
+
+Mode A: issue creation only
+
+- Do not require a clean working tree
+- Do not require a branch check
+- Do not create or modify files
+- Do not create a branch
+- Do not open a pull request
+- Only proceed to create exactly one GitHub issue after the repo checks pass
+
+Mode B: issue implementation
+After the shared repo checks pass, also run:
+
+- `git status --short`
+- `git branch --show-current`
+
+Implementation mode requirements:
+
+- the working tree must be clean before starting
+- you must create or use a dedicated issue branch, not main
+- if the tree is dirty or branch state is unsafe, stop before making changes
+
+Fallbacks:
+If `git rev-parse --show-toplevel` fails or returns empty, try in this order:
+
+- `pwd`
+- `echo %CD%`
+- `python -c "import os; print(os.getcwd())"`
+
+Only stop if all working-directory checks fail.
 
 If shell behavior is unclear or commands are not portable:
 
