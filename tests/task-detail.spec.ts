@@ -21,7 +21,9 @@ test("task detail edit flow persists Phase 1 fields and updates task metadata", 
   const updatedAtBefore = await updatedAtRow.locator("time").getAttribute("dateTime")
 
   await page.locator("#detailTitle").fill(updatedTitle)
-  await page.locator("#detailStatus").selectOption("blocked")
+  const statusControl = page.locator("#task-detail [aria-label='Status']")
+  await statusControl.click()
+  await page.getByRole("option", { name: "blocked" }).click()
   await page.locator("#detailNote").fill("# heading\nmarkdown note")
   await page
     .locator("#detailLinks")
@@ -53,7 +55,7 @@ test("task detail edit flow persists Phase 1 fields and updates task metadata", 
   await page.getByRole("link", { name: updatedTitle }).click()
 
   await expect(page.locator("#detailTitle")).toHaveValue(updatedTitle)
-  await expect(page.locator("#detailStatus")).toHaveValue("blocked")
+  await expect(page.locator("#task-detail [aria-label='Status']")).toContainText("blocked")
   await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
   await expect(page.locator("#detailNote")).toHaveValue("# heading\nmarkdown note")
   await expect(page.locator("#detailLinks")).toHaveValue(

@@ -39,10 +39,7 @@ import {
   EmptyTitle
 } from '@/components/ui/empty';
 import { Input } from '@/components/ui/input';
-import {
-  NativeSelect,
-  NativeSelectOption
-} from '@/components/ui/native-select';
+import { SelectFormField } from '@/components/select-form-field';
 import { Textarea } from '@/components/ui/textarea';
 
 const SOURCE_LABELS: Record<TaskSourceType, string> = {
@@ -435,86 +432,113 @@ export default async function Home({
                     <label htmlFor='status' className='text-xs text-muted-foreground'>
                       Status
                     </label>
-                    <NativeSelect id='status' name='status' defaultValue={filters.status ?? ''}>
-                      <NativeSelectOption value=''>All statuses</NativeSelectOption>
-                      {STATUS_OPTIONS.map((statusOption) => (
-                        <NativeSelectOption key={statusOption} value={statusOption}>
-                          {statusOption}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
+                    <SelectFormField
+                      id='status'
+                      name='status'
+                      value={filters.status ?? ''}
+                      placeholder='All statuses'
+                      options={[
+                        { value: '', label: 'All statuses' },
+                        ...STATUS_OPTIONS.map((statusOption) => ({
+                          value: statusOption,
+                          label: statusOption
+                        }))
+                      ]}
+                    />
                   </div>
 
                   <div className='space-y-1'>
                     <label htmlFor='later' className='text-xs text-muted-foreground'>
                       Later
                     </label>
-                    <NativeSelect id='later' name='later' defaultValue={filters.later ?? ''}>
-                      <NativeSelectOption value=''>Any</NativeSelectOption>
-                      <NativeSelectOption value='only'>Later only</NativeSelectOption>
-                      <NativeSelectOption value='exclude'>Exclude later</NativeSelectOption>
-                    </NativeSelect>
+                    <SelectFormField
+                      id='later'
+                      name='later'
+                      value={filters.later ?? ''}
+                      placeholder='Any'
+                      options={[
+                        { value: '', label: 'Any' },
+                        { value: 'only', label: 'Later only' },
+                        { value: 'exclude', label: 'Exclude later' }
+                      ]}
+                    />
                   </div>
 
                   <div className='space-y-1'>
                     <label htmlFor='person' className='text-xs text-muted-foreground'>
                       Person
                     </label>
-                    <NativeSelect id='person' name='person' defaultValue={filters.person ?? ''}>
-                      <NativeSelectOption value=''>Any person</NativeSelectOption>
-                      {peopleOptions.map((person) => (
-                        <NativeSelectOption key={person} value={person}>
-                          {person}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
+                    <SelectFormField
+                      id='person'
+                      name='person'
+                      value={filters.person ?? ''}
+                      placeholder='Any person'
+                      options={[
+                        { value: '', label: 'Any person' },
+                        ...peopleOptions.map((person) => ({
+                          value: person,
+                          label: person
+                        }))
+                      ]}
+                    />
                   </div>
 
                   <div className='space-y-1'>
                     <label htmlFor='tag' className='text-xs text-muted-foreground'>
                       Tag
                     </label>
-                    <NativeSelect id='tag' name='tag' defaultValue={filters.tag ?? ''}>
-                      <NativeSelectOption value=''>Any tag</NativeSelectOption>
-                      {tagOptions.map((tag) => (
-                        <NativeSelectOption key={tag} value={tag}>
-                          {tag}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
+                    <SelectFormField
+                      id='tag'
+                      name='tag'
+                      value={filters.tag ?? ''}
+                      placeholder='Any tag'
+                      options={[
+                        { value: '', label: 'Any tag' },
+                        ...tagOptions.map((tag) => ({
+                          value: tag,
+                          label: tag
+                        }))
+                      ]}
+                    />
                   </div>
 
                   <div className='space-y-1'>
                     <label htmlFor='time' className='text-xs text-muted-foreground'>
                       Time relation
                     </label>
-                    <NativeSelect
+                    <SelectFormField
                       id='time'
                       name='time'
-                      defaultValue={filters.timeRelation ?? ''}
-                    >
-                      <NativeSelectOption value=''>Any time</NativeSelectOption>
-                      <NativeSelectOption value='today'>Today</NativeSelectOption>
-                      <NativeSelectOption value='this_week'>This week</NativeSelectOption>
-                      <NativeSelectOption value='no_time'>No time</NativeSelectOption>
-                      <NativeSelectOption value='recently_updated'>
-                        Recently updated
-                      </NativeSelectOption>
-                    </NativeSelect>
+                      value={filters.timeRelation ?? ''}
+                      placeholder='Any time'
+                      options={[
+                        { value: '', label: 'Any time' },
+                        { value: 'today', label: 'Today' },
+                        { value: 'this_week', label: 'This week' },
+                        { value: 'no_time', label: 'No time' },
+                        { value: 'recently_updated', label: 'Recently updated' }
+                      ]}
+                    />
                   </div>
 
                   <div className='space-y-1'>
                     <label htmlFor='source' className='text-xs text-muted-foreground'>
                       Source
                     </label>
-                    <NativeSelect id='source' name='source' defaultValue={filters.source ?? ''}>
-                      <NativeSelectOption value=''>Any source</NativeSelectOption>
-                      <NativeSelectOption value='jira'>Jira</NativeSelectOption>
-                      <NativeSelectOption value='gitlab'>GitLab</NativeSelectOption>
-                      <NativeSelectOption value='github'>GitHub</NativeSelectOption>
-                      <NativeSelectOption value='confluence'>Confluence</NativeSelectOption>
-                      <NativeSelectOption value='other'>Other</NativeSelectOption>
-                    </NativeSelect>
+                    <SelectFormField
+                      id='source'
+                      name='source'
+                      value={filters.source ?? ''}
+                      placeholder='Any source'
+                      options={[
+                        { value: '', label: 'Any source' },
+                        { value: 'jira', label: 'Jira' },
+                        { value: 'gitlab', label: 'GitLab' },
+                        { value: 'github', label: 'GitHub' },
+                        { value: 'confluence', label: 'Confluence' },
+                        { value: 'other', label: 'Other' }
+                      ]}
+                    />
                   </div>
 
                   <div className='sm:col-span-2 xl:col-span-3 flex items-center gap-2'>
@@ -692,19 +716,18 @@ export default async function Home({
                       <label htmlFor='detailStatus' className='text-sm font-medium'>
                         Status
                       </label>
-                      <NativeSelect
+                      <SelectFormField
                         id='detailStatus'
                         name='detailStatus'
-                        aria-label='Status'
-                        defaultValue={selectedTask.status}
-                        className='w-full'
-                      >
-                        {STATUS_OPTIONS.map((statusOption) => (
-                          <NativeSelectOption key={statusOption} value={statusOption}>
-                            {statusOption}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
+                        ariaLabel='Status'
+                        value={selectedTask.status}
+                        placeholder='Status'
+                        triggerClassName='w-full rounded-md'
+                        options={STATUS_OPTIONS.map((statusOption) => ({
+                          value: statusOption,
+                          label: statusOption
+                        }))}
+                      />
                     </div>
 
                     <div className='flex items-end'>
