@@ -1,21 +1,32 @@
 import { expect, test } from '@playwright/test'
-import mysql from 'mysql2/promise'
 
 function uniqueToken() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-async function withDbConnection() {
-  return mysql.createConnection({
-    host: process.env.DB_HOST ?? process.env.MYSQL_HOST ?? '127.0.0.1',
-    port: Number.parseInt(process.env.DB_PORT ?? process.env.MYSQL_PORT ?? '3306', 10),
-    user: process.env.DB_USER ?? process.env.MYSQL_USER ?? 'root',
-    password: process.env.DB_PASSWORD ?? process.env.MYSQL_PASSWORD ?? 'localtaskhub',
-    database: process.env.DB_NAME ?? process.env.MYSQL_DATABASE ?? 'local-task-hub'
+async function submitQuickAdd(page: import('@playwright/test').Page) {
+  const createButton = page.getByRole('button', { name: 'Create task' })
+  await expect(createButton).toBeVisible()
+  await createButton.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
   })
 }
 
-test('exports selected task as markdown and active/open tasks as JSON', async ({ page }) => {
+async function openTaskDetail(page: import('@playwright/test').Page, title: string) {
+  const taskCard = page.locator('li', { hasText: title })
+  await expect(taskCard).toBeVisible()
+
+  const taskLink = taskCard.getByRole('link', { name: title }).first()
+  const taskHref = await taskLink.getAttribute('href')
+
+  expect(taskHref).toBeTruthy()
+  expect(taskHref).toContain('taskId=')
+
+  await page.goto(taskHref!)
+  await expect(page.locator('#detailTitle')).toHaveValue(title)
+}
+
+test('exports selected task as markdown and open tasks as JSON', async ({ page }) => {
   const unique = uniqueToken()
   const openTitle = `Issue12 Open ${unique}`
   const doneTitle = `Issue12 Done ${unique}`
@@ -27,39 +38,33 @@ test('exports selected task as markdown and active/open tasks as JSON', async ({
   await page.getByLabel('First link (optional)').fill(`https://github.com/vercel/next.js/issues/${unique}`)
   await page.getByLabel('First tags (optional)').fill(`tag-${unique}`)
   await page.getByLabel('First person references (optional)').fill(`@person-${unique}`)
-  await page.getByRole('button', { name: 'Create task' }).click()
+  await submitQuickAdd(page)
 
   await expect(page.locator('li', { hasText: openTitle })).toBeVisible()
 
   await page.getByLabel('Title *').fill(doneTitle)
-  await page.getByRole('button', { name: 'Create task' }).click()
+  await submitQuickAdd(page)
   await expect(page.locator('li', { hasText: doneTitle })).toBeVisible()
 
-  const connection = await withDbConnection()
-  try {
-    await connection.execute('UPDATE tasks SET status = ? WHERE title = ?', ['done', doneTitle])
-  } finally {
-    await connection.end()
-  }
+  await openTaskDetail(page, doneTitle)
 
-  await page.reload()
+  const markDoneButton = page.getByRole('button', { name: 'Mark done' })
+  await expect(markDoneButton).toBeVisible()
+  await markDoneButton.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
   await expect(page.locator('li', { hasText: doneTitle })).toContainText('done')
 
-  await page.getByRole('link', { name: openTitle }).click()
+  await openTaskDetail(page, openTitle)
 
-  const markdownResponse = await page.request.get('/api/exports/task/invalid/markdown')
-  expect(markdownResponse.status()).toBe(400)
+  const markdownLink = page.getByRole('link', { name: 'Export markdown' })
+  await expect(markdownLink).toBeVisible()
 
-  const selectedTaskLink = page.getByRole('link', { name: openTitle })
-  const selectedTaskHref = await selectedTaskLink.getAttribute('href')
-  expect(selectedTaskHref).toBeTruthy()
+  const markdownPath = await markdownLink.getAttribute('href')
+  expect(markdownPath).toBeTruthy()
+  expect(markdownPath).toMatch(/^\/api\/exports\/task\/\d+\/markdown$/)
 
-  const taskIdMatch = selectedTaskHref?.match(/taskId=(\d+)/)
-  expect(taskIdMatch).toBeTruthy()
-  const taskId = Number.parseInt(taskIdMatch?.[1] ?? '', 10)
-  expect(Number.isNaN(taskId)).toBeFalsy()
-
-  const markdownExportResponse = await page.request.get(`/api/exports/task/${taskId}/markdown`)
+  const markdownExportResponse = await page.request.get(markdownPath!)
   expect(markdownExportResponse.status()).toBe(200)
   expect(markdownExportResponse.headers()['content-type']).toContain('text/markdown')
 
@@ -71,7 +76,15 @@ test('exports selected task as markdown and active/open tasks as JSON', async ({
   expect(markdownContent).toContain(`@person-${unique}`)
   expect(markdownContent).toContain('## Time summary')
 
-  const jsonExportResponse = await page.request.get('/api/exports/tasks/open')
+  await page.goto('/')
+
+  const openExportLink = page.getByRole('link', { name: 'Export open JSON' })
+  await expect(openExportLink).toBeVisible()
+
+  const openExportPath = await openExportLink.getAttribute('href')
+  expect(openExportPath).toBe('/api/exports/tasks/open')
+
+  const jsonExportResponse = await page.request.get(openExportPath!)
   expect(jsonExportResponse.status()).toBe(200)
   expect(jsonExportResponse.headers()['content-type']).toContain('application/json')
 

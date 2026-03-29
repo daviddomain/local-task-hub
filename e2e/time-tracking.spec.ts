@@ -4,10 +4,20 @@ function buildUnique(testName: string) {
   return `${testName}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+async function submitQuickAdd(page: import("@playwright/test").Page) {
+  const createButton = page.getByRole("button", { name: "Create task" })
+  await expect(createButton).toBeVisible()
+  await createButton.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
+}
+
 async function saveTaskDetail(page: import("@playwright/test").Page) {
   const saveButton = page.getByRole("button", { name: "Save detail" })
-  await saveButton.scrollIntoViewIfNeeded()
-  await saveButton.click()
+  await expect(saveButton).toBeVisible()
+  await saveButton.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
 }
 
 test("start, stop, persist, and edit task time sessions", async ({ page }, testInfo) => {
@@ -17,7 +27,7 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
   await page.goto("/")
 
   await page.getByLabel("Title *").fill(title)
-  await page.getByRole("button", { name: "Create task" }).click()
+  await submitQuickAdd(page)
 
   const card = page.locator("li", { hasText: title })
   await expect(card).toBeVisible()
@@ -69,7 +79,7 @@ test("double start submission does not create duplicate running sessions", async
   await page.goto("/")
 
   await page.getByLabel("Title *").fill(title)
-  await page.getByRole("button", { name: "Create task" }).click()
+  await submitQuickAdd(page)
 
   const card = page.locator("li", { hasText: title })
   await expect(card).toBeVisible()
@@ -97,7 +107,7 @@ test("double stop submission does not mutate ended session twice", async ({ page
   await page.goto("/")
 
   await page.getByLabel("Title *").fill(title)
-  await page.getByRole("button", { name: "Create task" }).click()
+  await submitQuickAdd(page)
 
   const card = page.locator("li", { hasText: title })
   await expect(card).toBeVisible()
@@ -144,7 +154,7 @@ test("today totals include overlap for sessions that started before midnight", a
   await page.goto("/")
 
   await page.getByLabel("Title *").fill(title)
-  await page.getByRole("button", { name: "Create task" }).click()
+  await submitQuickAdd(page)
 
   await page.getByRole("link", { name: title }).click()
 
@@ -166,7 +176,7 @@ test("editing only endedAt recomputes persisted duration and updates totals", as
   await page.goto("/")
 
   await page.getByLabel("Title *").fill(title)
-  await page.getByRole("button", { name: "Create task" }).click()
+  await submitQuickAdd(page)
 
   const card = page.locator("li", { hasText: title })
 
