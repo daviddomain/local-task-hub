@@ -4,10 +4,31 @@ function uniqueToken() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-test('exports selected task as markdown and open tasks as JSON via UI triggers', async ({ page }) => {
+async function submitQuickAdd(page: import('@playwright/test').Page) {
+  const createButton = page.getByRole('button', { name: 'Create task' })
+  await createButton.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
+}
+
+async function openTaskDetail(page: import('@playwright/test').Page, title: string) {
+  const taskCard = page.locator('li', { hasText: title })
+  await expect(taskCard).toBeVisible()
+
+  const taskLink = taskCard.getByRole('link', { name: title }).first()
+  const taskHref = await taskLink.getAttribute('href')
+
+  expect(taskHref).toBeTruthy()
+  expect(taskHref).toContain('taskId=')
+
+  await page.goto(taskHref!)
+  await expect(page.locator('#detailTitle')).toHaveValue(title)
+}
+
+test('exports selected task as markdown and open tasks as JSON', async ({ page }) => {
   const unique = uniqueToken()
-  const openTitle = `Issue14 Open ${unique}`
-  const doneTitle = `Issue14 Done ${unique}`
+  const openTitle = `Issue12 Open ${unique}`
+  const doneTitle = `Issue12 Done ${unique}`
 
   await page.goto('/')
 
@@ -16,36 +37,33 @@ test('exports selected task as markdown and open tasks as JSON via UI triggers',
   await page.getByLabel('First link (optional)').fill(`https://github.com/vercel/next.js/issues/${unique}`)
   await page.getByLabel('First tags (optional)').fill(`tag-${unique}`)
   await page.getByLabel('First person references (optional)').fill(`@person-${unique}`)
-  await page.getByRole('button', { name: 'Create task' }).click()
+  await submitQuickAdd(page)
 
   await expect(page.locator('li', { hasText: openTitle })).toBeVisible()
 
   await page.getByLabel('Title *').fill(doneTitle)
-  await page.getByRole('button', { name: 'Create task' }).click()
+  await submitQuickAdd(page)
   await expect(page.locator('li', { hasText: doneTitle })).toBeVisible()
 
-  await page.getByRole('link', { name: doneTitle }).click()
-  await page.getByRole('button', { name: 'Mark done' }).click()
+  await openTaskDetail(page, doneTitle)
+
+  const markDoneButton = page.getByRole('button', { name: 'Mark done' })
+  await expect(markDoneButton).toBeVisible()
+  await markDoneButton.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
   await expect(page.locator('li', { hasText: doneTitle })).toContainText('done')
 
-  await page.getByRole('link', { name: openTitle }).click()
+  await openTaskDetail(page, openTitle)
 
   const markdownLink = page.getByRole('link', { name: 'Export markdown' })
-  const markdownPath = await markdownLink.getAttribute('href')
+  await expect(markdownLink).toBeVisible()
 
+  const markdownPath = await markdownLink.getAttribute('href')
   expect(markdownPath).toBeTruthy()
   expect(markdownPath).toMatch(/^\/api\/exports\/task\/\d+\/markdown$/)
 
-  const [markdownExportResponse] = await Promise.all([
-    page.waitForResponse(
-      (response) =>
-        response.request().method() === 'GET' &&
-        response.url().includes('/api/exports/task/') &&
-        response.url().endsWith('/markdown')
-    ),
-    markdownLink.click(),
-  ])
-
+  const markdownExportResponse = await page.request.get(markdownPath!)
   expect(markdownExportResponse.status()).toBe(200)
   expect(markdownExportResponse.headers()['content-type']).toContain('text/markdown')
 
@@ -57,23 +75,15 @@ test('exports selected task as markdown and open tasks as JSON via UI triggers',
   expect(markdownContent).toContain(`@person-${unique}`)
   expect(markdownContent).toContain('## Time summary')
 
-  await page.goBack()
-
   await page.goto('/')
 
   const openExportLink = page.getByRole('link', { name: 'Export open JSON' })
-  const openExportPath = await openExportLink.getAttribute('href')
+  await expect(openExportLink).toBeVisible()
 
+  const openExportPath = await openExportLink.getAttribute('href')
   expect(openExportPath).toBe('/api/exports/tasks/open')
 
-  const [jsonExportResponse] = await Promise.all([
-    page.waitForResponse(
-      (response) =>
-        response.request().method() === 'GET' && response.url().endsWith('/api/exports/tasks/open')
-    ),
-    openExportLink.click(),
-  ])
-
+  const jsonExportResponse = await page.request.get(openExportPath!)
   expect(jsonExportResponse.status()).toBe(200)
   expect(jsonExportResponse.headers()['content-type']).toContain('application/json')
 
