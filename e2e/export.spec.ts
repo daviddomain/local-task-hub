@@ -6,6 +6,7 @@ function uniqueToken() {
 
 async function submitQuickAdd(page: import('@playwright/test').Page) {
   const createButton = page.getByRole('button', { name: 'Create task' })
+  await expect(createButton).toBeVisible()
   await createButton.evaluate((element) => {
     ;(element as HTMLButtonElement).click()
   })

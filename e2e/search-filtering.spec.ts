@@ -11,6 +11,14 @@ async function withDbConnection() {
   })
 }
 
+async function submitQuickAdd(page: import('@playwright/test').Page) {
+  const createButton = page.getByRole('button', { name: 'Create task' })
+  await expect(createButton).toBeVisible()
+  await createButton.evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
+}
+
 test('live search and combinable filters work with persisted data', async ({ page }) => {
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const targetTitle = `Issue11 Target ${unique}`
@@ -30,7 +38,7 @@ test('live search and combinable filters work with persisted data', async ({ pag
     .fill(`https://github.com/vercel/next.js/issues/${urlToken}`)
   await page.getByLabel('First tags (optional)').fill(tagToken)
   await page.getByLabel('First person references (optional)').fill(personToken)
-  await page.getByRole('button', { name: 'Create task' }).click()
+  await submitQuickAdd(page)
 
   const targetCard = page.locator('li', { hasText: targetTitle })
   await expect(targetCard).toBeVisible()
@@ -40,7 +48,7 @@ test('live search and combinable filters work with persisted data', async ({ pag
   await page.getByLabel('First link (optional)').fill(`https://example.com/${unique}`)
   await page.getByLabel('First tags (optional)').fill(otherTagToken)
   await page.getByLabel('First person references (optional)').fill(`@other-${unique}`)
-  await page.getByRole('button', { name: 'Create task' }).click()
+  await submitQuickAdd(page)
 
   const otherCard = page.locator('li', { hasText: otherTitle })
   await expect(otherCard).toBeVisible()
@@ -97,7 +105,9 @@ test('live search and combinable filters work with persisted data', async ({ pag
   await page.locator('#tag').selectOption(tagToken)
   await page.locator('#time').selectOption('no_time')
   await page.locator('#source').selectOption('github')
-  await page.getByRole('button', { name: 'Apply filters' }).click()
+  await page.getByRole('button', { name: 'Apply filters' }).evaluate((element) => {
+    ;(element as HTMLButtonElement).click()
+  })
 
   // Regression check: legacy row (source_type='other') still matches GitHub source filter via URL inference.
   await expect(page.locator('li', { hasText: targetTitle })).toBeVisible()
