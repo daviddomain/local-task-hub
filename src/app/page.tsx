@@ -6,10 +6,11 @@ import { Download, Play, Plus, Search, Square } from 'lucide-react';
 import {
   createTask,
   getTaskDetail,
+  listRecentlyOpenedTasks,
   listTasks,
+  recordTaskOpened,
   updateTaskDetail,
   type Task,
-  type TaskDetail,
   type TaskListFilters,
   type TaskSourceType,
   type TaskTimeRelationFilter
@@ -237,7 +238,7 @@ function truncateNote(note: string, maxLength = 140) {
     return note;
   }
 
-  return `${note.slice(0, maxLength).trimEnd()}…`;
+  return `${note.slice(0, maxLength).trimEnd()}...`;
 }
 
 function formatDuration(totalSeconds: number) {
@@ -295,7 +296,7 @@ function truncateLinkLabel(url: string, maxLength = 96) {
     return url;
   }
 
-  return `${url.slice(0, maxLength).trimEnd()}…`;
+  return `${url.slice(0, maxLength).trimEnd()}...`;
 }
 
 export default async function Home({
@@ -345,6 +346,12 @@ export default async function Home({
   const tasks = await listTasks(filters);
   const selectedTask =
     Number.isNaN(selectedTaskId) ? null : await getTaskDetail(selectedTaskId);
+
+  if (selectedTask) {
+    await recordTaskOpened(selectedTask.id);
+  }
+
+  const recentlyOpenedTasks = await listRecentlyOpenedTasks();
   const todayTotalTrackedSeconds = await getTodayTotalTrackedSeconds();
 
   const peopleOptions = [...new Set(allTasks.flatMap((task) => task.people))].sort((a, b) =>
@@ -590,6 +597,49 @@ export default async function Home({
                   </div>
                 ) : null}
               </fieldset>
+            </CardContent>
+          </Card>
+
+          <Card aria-label='Recently opened tasks'>
+            <CardHeader className='border-b border-border'>
+              <CardTitle className='text-base tracking-tight'>Recently opened</CardTitle>
+              <CardDescription>Latest task detail views (up to 5).</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {recentlyOpenedTasks.length === 0 ? (
+                <p className='text-sm text-muted-foreground'>No recently opened tasks yet.</p>
+              ) : (
+                <ul className='space-y-2'>
+                  {recentlyOpenedTasks.map((task) => {
+                    const taskHrefParams = new URLSearchParams(taskLinkParams.toString());
+                    taskHrefParams.set('taskId', String(task.id));
+
+                    return (
+                      <li
+                        key={`recent-${task.id}`}
+                        className='flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2'
+                      >
+                        <Link
+                          href={`/?${taskHrefParams.toString()}#task-detail`}
+                          className='truncate text-sm underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                        >
+                          {task.title}
+                        </Link>
+                        <div className='flex shrink-0 items-center gap-2'>
+                          {task.later ? (
+                            <Badge variant='outline' className='text-[10px]'>
+                              later
+                            </Badge>
+                          ) : null}
+                          <Badge variant='outline' className='text-[10px]'>
+                            {task.status}
+                          </Badge>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </CardContent>
           </Card>
 
@@ -1075,3 +1125,4 @@ export default async function Home({
     </div>
   );
 }
+

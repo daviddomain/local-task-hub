@@ -10,6 +10,10 @@ const TASK_STATUSES = ["open", "in_progress", "blocked", "waiting", "review", "d
 
 type TaskStatus = (typeof TASK_STATUSES)[number]
 
+const MAX_RECENTLY_OPENED_TASKS = 5
+
+let hasEnsuredTaskRecentOpensTable = false
+
 export type TaskSourceType = "jira" | "gitlab" | "github" | "confluence" | "other"
 
 export type TaskTimeRelationFilter = "today" | "this_week" | "no_time" | "recently_updated"
@@ -73,6 +77,14 @@ type TaskTimeSessionRow = RowDataPacket & {
   duration_seconds: number | null
 }
 
+type RecentlyOpenedTaskRow = RowDataPacket & {
+  id: number
+  title: string
+  status: TaskStatus
+  later: boolean
+  last_opened_at: Date
+}
+
 export type Task = {
   id: number
   title: string
@@ -109,6 +121,14 @@ export type TaskDetail = {
   timeSessions: TaskTimeSession[]
   createdAt: Date
   updatedAt: Date
+}
+
+export type RecentlyOpenedTask = {
+  id: number
+  title: string
+  status: TaskStatus
+  later: boolean
+  openedAt: Date
 }
 
 export type CreateTaskInput = {
@@ -206,6 +226,78 @@ function mapRow(row: TaskRow): Task {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+async function ensureTaskRecentOpensTable() {
+  if (hasEnsuredTaskRecentOpensTable) {
+    return
+  }
+
+  await getDbPool().execute(`
+    CREATE TABLE IF NOT EXISTS task_recent_opens (
+      task_id BIGINT UNSIGNED NOT NULL,
+      last_opened_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (task_id),
+      CONSTRAINT fk_task_recent_opens_task_id
+        FOREIGN KEY (task_id)
+        REFERENCES tasks(id)
+        ON DELETE CASCADE,
+      INDEX idx_task_recent_opens_last_opened_at (last_opened_at)
+    ) ENGINE=InnoDB
+      DEFAULT CHARSET=utf8mb4
+      COLLATE=utf8mb4_unicode_ci
+  `)
+
+  hasEnsuredTaskRecentOpensTable = true
+}
+
+export async function recordTaskOpened(taskId: number) {
+  await ensureTaskRecentOpensTable()
+
+  await getDbPool().execute(
+    `
+      INSERT INTO task_recent_opens (
+        task_id,
+        last_opened_at
+      ) VALUES (?, CURRENT_TIMESTAMP(3))
+      ON DUPLICATE KEY UPDATE
+        last_opened_at = VALUES(last_opened_at)
+    `,
+    [taskId],
+  )
+}
+
+export async function listRecentlyOpenedTasks(limit = MAX_RECENTLY_OPENED_TASKS) {
+  await ensureTaskRecentOpensTable()
+
+  const boundedLimit = Number.isFinite(limit)
+    ? Math.min(Math.max(Math.floor(limit), 1), 20)
+    : MAX_RECENTLY_OPENED_TASKS
+
+  const [rows] = await getDbPool().query<RecentlyOpenedTaskRow[]>(
+    `
+      SELECT
+        t.id,
+        t.title,
+        t.status,
+        t.later,
+        tro.last_opened_at
+      FROM task_recent_opens tro
+      INNER JOIN tasks t
+        ON t.id = tro.task_id
+      ORDER BY tro.last_opened_at DESC, tro.task_id DESC
+      LIMIT ?
+    `,
+    [boundedLimit],
+  )
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    later: row.later,
+    openedAt: row.last_opened_at,
+  })) satisfies RecentlyOpenedTask[]
 }
 
 export async function listTasks(filters: TaskListFilters = {}) {
@@ -740,3 +832,4 @@ export async function updateTaskDetail(input: UpdateTaskDetailInput) {
     connection.release()
   }
 }
+
