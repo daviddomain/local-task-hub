@@ -11,7 +11,7 @@ test('task detail renders attached links as clickable items and keeps one-per-li
   await quickAdd.getByLabel('Title *').fill(title)
   await quickAdd.getByLabel('Title *').press('Enter')
 
-  await page.getByRole('link', { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole('link', { name: title }).click()
 
   await expect(page.getByText('Task detail').first()).toBeVisible()
   await expect(page.getByLabel('Attached links')).toHaveCount(0)
@@ -46,7 +46,7 @@ test('task detail renders attached links as clickable items and keeps one-per-li
   await popup.close()
 
   await page.reload()
-  await page.getByRole('link', { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole('link', { name: title }).click()
 
   await expect(page.locator('#detailLinks')).toHaveValue(
     'https://github.com/vercel/next.js\nhttps://gitlab.com/gitlab-org/gitlab',
@@ -63,14 +63,14 @@ test('task detail supports structured time session editing and explicit removal'
   await page.getByLabel('Title *').fill(title)
   await page.getByRole('button', { name: 'Create task' }).click()
 
-  const card = page.locator('li', { hasText: title })
+  const card = page.getByTestId('main-task-list').locator('li', { hasText: title })
   await expect(card).toBeVisible()
 
   await card.getByRole('button', { name: 'Start tracking' }).click()
   await page.waitForTimeout(1100)
   await card.getByRole('button', { name: 'Stop tracking' }).click()
 
-  await page.getByRole('link', { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole('link', { name: title }).click()
 
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
 
@@ -86,7 +86,7 @@ test('task detail supports structured time session editing and explicit removal'
   })
 
   await page.reload()
-  await page.getByRole('link', { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole('link', { name: title }).click()
 
   await expect(page.locator('#detailTimeSessionStartedAt-0')).toHaveValue(startedAt)
   await expect(page.locator('#detailTimeSessionEndedAt-0')).toHaveValue(endedAt)
@@ -99,7 +99,7 @@ test('task detail supports structured time session editing and explicit removal'
   })
 
   await page.reload()
-  await page.getByRole('link', { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole('link', { name: title }).click()
 
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(0)
   await expect(page.getByText('No time sessions yet.')).toBeVisible()

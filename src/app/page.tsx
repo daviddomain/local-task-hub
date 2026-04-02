@@ -673,7 +673,7 @@ export default async function Home({
                   </EmptyContent>
                 </Empty>
               ) : (
-                <ul className='space-y-3'>
+                <ul className='space-y-3' aria-label='Main task list' data-testid='main-task-list'>
                   {tasks.map((task) => {
                     const isSelected = selectedTask?.id === task.id;
                     const taskHrefParams = new URLSearchParams(taskLinkParams.toString());
@@ -738,8 +738,8 @@ export default async function Home({
 
                         <div className='mt-2 space-y-2'>
                           <p className='text-xs text-muted-foreground'>
-                            {task.timerStartedAt ? 'Running now' : 'Stopped'} · Today:{' '}
-                            {getTaskTodayLabel(task)} · Total: {getTaskTotalLabel(task)}
+                            {task.timerStartedAt ? 'Running now' : 'Stopped'} � Today:{' '}
+                            {getTaskTodayLabel(task)} � Total: {getTaskTotalLabel(task)}
                           </p>
                           <form
                             action={task.timerStartedAt ? stopTrackingAction : startTrackingAction}
@@ -1125,4 +1125,5 @@ export default async function Home({
     </div>
   );
 }
+
 

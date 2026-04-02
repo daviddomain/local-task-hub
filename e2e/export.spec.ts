@@ -13,7 +13,7 @@ async function submitQuickAdd(page: import('@playwright/test').Page) {
 }
 
 async function openTaskDetail(page: import('@playwright/test').Page, title: string) {
-  const taskCard = page.locator('li', { hasText: title })
+  const taskCard = page.getByTestId('main-task-list').locator('li', { hasText: title })
   await expect(taskCard).toBeVisible()
 
   const taskLink = taskCard.getByRole('link', { name: title }).first()
@@ -40,11 +40,11 @@ test('exports selected task as markdown and open tasks as JSON', async ({ page }
   await page.getByLabel('First person references (optional)').fill(`@person-${unique}`)
   await submitQuickAdd(page)
 
-  await expect(page.locator('li', { hasText: openTitle })).toBeVisible()
+  await expect(page.getByTestId('main-task-list').locator('li', { hasText: openTitle })).toBeVisible()
 
   await page.getByLabel('Title *').fill(doneTitle)
   await submitQuickAdd(page)
-  await expect(page.locator('li', { hasText: doneTitle })).toBeVisible()
+  await expect(page.getByTestId('main-task-list').locator('li', { hasText: doneTitle })).toBeVisible()
 
   await openTaskDetail(page, doneTitle)
 
@@ -53,7 +53,7 @@ test('exports selected task as markdown and open tasks as JSON', async ({ page }
   await markDoneButton.evaluate((element) => {
     ;(element as HTMLButtonElement).click()
   })
-  await expect(page.locator('li', { hasText: doneTitle })).toContainText('done')
+  await expect(page.getByTestId('main-task-list').locator('li', { hasText: doneTitle })).toContainText('done')
 
   await openTaskDetail(page, openTitle)
 

@@ -9,14 +9,14 @@ test('create task with title only persists and renders in list', async ({ page }
   await page.getByLabel('Title *').fill(title)
   await page.getByRole('button', { name: 'Create task' }).click()
 
-  const card = page.locator('li', { hasText: title })
+  const card = page.getByTestId('main-task-list').locator('li', { hasText: title })
   await expect(card).toBeVisible()
   await expect(card).toContainText('open')
   await expect(card).not.toContainText('Running now')
 
   await page.reload()
 
-  const persistedCard = page.locator('li', { hasText: title })
+  const persistedCard = page.getByTestId('main-task-list').locator('li', { hasText: title })
   await expect(persistedCard).toBeVisible()
   await expect(persistedCard).toContainText('open')
 })
@@ -36,7 +36,7 @@ test('create task with optional fields and tracking persists after reload', asyn
 
   await page.getByRole('button', { name: 'Create task' }).click()
 
-  const card = page.locator('li', { hasText: title })
+  const card = page.getByTestId('main-task-list').locator('li', { hasText: title })
   await expect(card).toBeVisible()
   await expect(card).toContainText('open')
   await expect(card).toContainText('Running now')
@@ -47,7 +47,7 @@ test('create task with optional fields and tracking persists after reload', asyn
 
   await page.reload()
 
-  const persistedCard = page.locator('li', { hasText: title })
+  const persistedCard = page.getByTestId('main-task-list').locator('li', { hasText: title })
   await expect(persistedCard).toBeVisible()
   await expect(persistedCard).toContainText('note for issue #2')
   await expect(persistedCard).toContainText('GitHub')
@@ -63,7 +63,7 @@ test('open task detail, edit task, and persist detail changes after reload', asy
   await page.getByLabel('Title *').fill(initialTitle)
   await page.getByRole('button', { name: 'Create task' }).click()
 
-  await page.getByRole('link', { name: initialTitle }).click()
+  await page.getByTestId('main-task-list').getByRole('link', { name: initialTitle }).click()
 
   await expect(page.getByText('Task detail').first()).toBeVisible()
   await expect(page.locator('#detailTitle')).toHaveValue(initialTitle)
@@ -76,16 +76,16 @@ test('open task detail, edit task, and persist detail changes after reload', asy
 
   await page.getByRole('button', { name: 'Save detail' }).click()
 
-  const updatedCard = page.locator('li', { hasText: updatedTitle })
+  const updatedCard = page.getByTestId('main-task-list').locator('li', { hasText: updatedTitle })
   await expect(updatedCard).toBeVisible()
   await expect(updatedCard).toContainText('blocked')
   await expect(updatedCard).toContainText('Updated detail note')
 
   await page.reload()
-  await page.getByRole('link', { name: updatedTitle }).click()
+  await page.getByTestId('main-task-list').getByRole('link', { name: updatedTitle }).click()
 
   await expect(page.locator('#detailTitle')).toHaveValue(updatedTitle)
   await expect(page.locator("#detailStatus")).toContainText("blocked")
   await expect(page.locator('#detailNote')).toHaveValue('Updated detail note')
 })
-
+
