@@ -45,17 +45,15 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
 
   await page.getByRole("link", { name: title }).click()
 
-  const timeSessionsInput = page.locator("#detailTimeSessions")
-  await expect(timeSessionsInput).not.toHaveValue("")
+  const sessionRows = page.locator("#task-detail [data-testid='time-session-row']")
+  await expect(sessionRows).toHaveCount(1)
 
-  const originalSession = await timeSessionsInput.inputValue()
-  const [firstLine] = originalSession.split("\n")
-  const [startedAtRaw] = firstLine.split("|")
-
+  const startedAtRaw = await page.locator("#detailTimeSessionStartedAt-0").inputValue()
   const startedAt = new Date(startedAtRaw)
   const correctedEndedAt = new Date(startedAt.getTime() + 2 * 60 * 1000)
 
-  await timeSessionsInput.fill(`${startedAtRaw}|${correctedEndedAt.toISOString()}|`)
+  await page.locator("#detailTimeSessionEndedAt-0").fill(correctedEndedAt.toISOString())
+  await page.locator("#detailTimeSessionDuration-0").fill("")
   await saveTaskDetail(page)
 
   await expect(card).toContainText("Total: 2m")
@@ -67,7 +65,8 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
   await expect(persistedCard).toContainText("Total: 2m")
 
   await page.getByRole("link", { name: title }).click()
-  await expect(page.locator("#detailTimeSessions")).toContainText(correctedEndedAt.toISOString())
+  await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
+  await expect(page.locator("#detailTimeSessionEndedAt-0")).toHaveValue(correctedEndedAt.toISOString())
 
   await expect(page.getByText("Today total tracked:")).toBeVisible()
 })
@@ -90,14 +89,10 @@ test("double start submission does not create duplicate running sessions", async
 
   await page.getByRole("link", { name: title }).click()
 
-  const sessionsRaw = await page.locator("#detailTimeSessions").inputValue()
-  const sessionLines = sessionsRaw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-
-  expect(sessionLines).toHaveLength(1)
-  expect(sessionLines[0]).toMatch(/^.+\|\|$/)
+  const sessionRows = page.locator("#task-detail [data-testid='time-session-row']")
+  await expect(sessionRows).toHaveCount(1)
+  await expect(page.locator("#detailTimeSessionEndedAt-0")).toHaveValue("")
+  await expect(page.locator("#detailTimeSessionDuration-0")).toHaveValue("")
 })
 
 test("double stop submission does not mutate ended session twice", async ({ page }, testInfo) => {
@@ -122,16 +117,16 @@ test("double stop submission does not mutate ended session twice", async ({ page
 
   await page.getByRole("link", { name: title }).click()
 
-  const sessionsRaw = await page.locator("#detailTimeSessions").inputValue()
-  const sessionLines = sessionsRaw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
+  const sessionRows = page.locator("#task-detail [data-testid='time-session-row']")
+  await expect(sessionRows).toHaveCount(1)
 
-  expect(sessionLines).toHaveLength(1)
-  expect(sessionLines[0]).toMatch(/^.+\|.+\|\d+$/)
+  const startedAtRaw = await page.locator("#detailTimeSessionStartedAt-0").inputValue()
+  const endedAtRaw = await page.locator("#detailTimeSessionEndedAt-0").inputValue()
+  const durationRaw = await page.locator("#detailTimeSessionDuration-0").inputValue()
 
-  const [startedAtRaw, endedAtRaw, durationRaw] = sessionLines[0].split("|")
+  expect(endedAtRaw).not.toBe("")
+  expect(durationRaw).toMatch(/^\d+$/)
+
   const startedAt = new Date(startedAtRaw)
   const endedAt = new Date(endedAtRaw)
   const durationSeconds = Number.parseInt(durationRaw, 10)
@@ -156,15 +151,23 @@ test("today totals include overlap for sessions that started before midnight", a
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
+  const card = page.locator("li", { hasText: title })
+  await expect(card).toBeVisible()
+
+  await card.getByRole("button", { name: "Start tracking" }).click()
+  await expect(card.getByRole("button", { name: "Stop tracking" })).toBeVisible({ timeout: 10000 })
+  await page.waitForTimeout(1100)
+  await card.getByRole("button", { name: "Stop tracking" }).click()
+
   await page.getByRole("link", { name: title }).click()
 
-  await page
-    .locator("#detailTimeSessions")
-    .fill(`${startedAt.toISOString()}|${endedAt.toISOString()}|`)
+  await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
+  await page.locator("#detailTimeSessionStartedAt-0").fill(startedAt.toISOString())
+  await page.locator("#detailTimeSessionEndedAt-0").fill(endedAt.toISOString())
+  await page.locator("#detailTimeSessionDuration-0").fill("")
 
   await saveTaskDetail(page)
 
-  const card = page.locator("li", { hasText: title })
   await expect(card).toContainText("Today: 10m")
   await expect(card).toContainText("Total: 20m")
 })
@@ -188,15 +191,12 @@ test("editing only endedAt recomputes persisted duration and updates totals", as
 
   await page.getByRole("link", { name: title }).click()
 
-  const timeSessionsInput = page.locator("#detailTimeSessions")
-  const original = await timeSessionsInput.inputValue()
-  const [firstLine] = original.split("\n")
-  const [startedAtRaw] = firstLine.split("|")
-
+  const startedAtRaw = await page.locator("#detailTimeSessionStartedAt-0").inputValue()
   const startedAt = new Date(startedAtRaw)
   const editedEndedAt = new Date(startedAt.getTime() + 10 * 60 * 1000)
 
-  await timeSessionsInput.fill(`${startedAtRaw}|${editedEndedAt.toISOString()}|1`)
+  await page.locator("#detailTimeSessionEndedAt-0").fill(editedEndedAt.toISOString())
+  await page.locator("#detailTimeSessionDuration-0").fill("1")
   await saveTaskDetail(page)
 
   await expect(card).toContainText("Total: 10m")
