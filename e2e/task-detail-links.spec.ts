@@ -53,3 +53,54 @@ test('task detail renders attached links as clickable items and keeps one-per-li
   )
   await expect(page.getByLabel('Attached links')).toBeVisible()
 })
+
+test('task detail supports structured time session editing and explicit removal', async ({ page }) => {
+  const unique = Date.now().toString()
+  const title = `Issue35 Sessions ${unique}`
+
+  await page.goto('/')
+
+  await page.getByLabel('Title *').fill(title)
+  await page.getByRole('button', { name: 'Create task' }).click()
+
+  const card = page.locator('li', { hasText: title })
+  await expect(card).toBeVisible()
+
+  await card.getByRole('button', { name: 'Start tracking' }).click()
+  await page.waitForTimeout(1100)
+  await card.getByRole('button', { name: 'Stop tracking' }).click()
+
+  await page.getByRole('link', { name: title }).click()
+
+  await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
+
+  const startedAt = '2026-01-02T03:04:05.000Z'
+  const endedAt = '2026-01-02T04:04:05.000Z'
+
+  await page.locator('#detailTimeSessionStartedAt-0').fill(startedAt)
+  await page.locator('#detailTimeSessionEndedAt-0').fill(endedAt)
+  await page.locator('#detailTimeSessionDuration-0').fill('3600')
+
+  await page.locator('#task-detail form').evaluate((form) => {
+    (form as HTMLFormElement).requestSubmit()
+  })
+
+  await page.reload()
+  await page.getByRole('link', { name: title }).click()
+
+  await expect(page.locator('#detailTimeSessionStartedAt-0')).toHaveValue(startedAt)
+  await expect(page.locator('#detailTimeSessionEndedAt-0')).toHaveValue(endedAt)
+  await expect(page.locator('#detailTimeSessionDuration-0')).toHaveValue('3600')
+
+  await page.locator('#detailTimeSessionRemove-0').check()
+
+  await page.locator('#task-detail form').evaluate((form) => {
+    (form as HTMLFormElement).requestSubmit()
+  })
+
+  await page.reload()
+  await page.getByRole('link', { name: title }).click()
+
+  await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(0)
+  await expect(page.getByText('No time sessions yet.')).toBeVisible()
+})

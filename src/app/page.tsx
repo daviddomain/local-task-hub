@@ -122,60 +122,74 @@ function parseListInput(value: string, separator: ',' | '\n') {
     .filter(Boolean);
 }
 
-function serializeTimeSessions(timeSessions: TaskDetail['timeSessions']) {
-  return timeSessions
-    .map((session) => {
-      const startedAt = session.startedAt.toISOString();
-      const endedAt = session.endedAt ? session.endedAt.toISOString() : '';
-      const durationSeconds = session.durationSeconds ?? '';
-      return `${startedAt}|${endedAt}|${durationSeconds}`;
-    })
-    .join('\n');
-}
+function parseTimeSessionsInput(formData: FormData) {
+  const count = Number.parseInt(
+    String(formData.get('detailTimeSessionCount') ?? '0'),
+    10
+  );
 
-function parseTimeSessionsInput(value: string) {
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [startedAtRaw = '', endedAtRaw = '', durationRaw = ''] =
-        line.split('|');
-      const startedAt = new Date(startedAtRaw);
-      if (Number.isNaN(startedAt.getTime())) {
-        throw new Error(`Invalid started_at value in time sessions: ${startedAtRaw}`);
-      }
+  if (Number.isNaN(count) || count < 0) {
+    throw new Error('Invalid time session count');
+  }
 
-      const endedAtCandidate = endedAtRaw.trim();
-      const endedAt = endedAtCandidate ? new Date(endedAtCandidate) : null;
-      if (endedAt && Number.isNaN(endedAt.getTime())) {
-        throw new Error(`Invalid ended_at value in time sessions: ${endedAtRaw}`);
-      }
+  const sessions: Array<{
+    startedAt: Date;
+    endedAt: Date | null;
+    durationSeconds: number | null;
+  }> = [];
 
-      const durationCandidate = durationRaw.trim();
-      const durationSeconds =
-        durationCandidate ? Number.parseInt(durationCandidate, 10) : null;
-      if (durationCandidate && Number.isNaN(durationSeconds)) {
-        throw new Error(
-          `Invalid duration_seconds value in time sessions: ${durationRaw}`
-        );
-      }
+  for (let index = 0; index < count; index += 1) {
+    if (formData.get('detailTimeSessionRemove_' + index)) {
+      continue;
+    }
 
-      const normalizedDurationSeconds =
-        endedAt
-          ? (durationSeconds ??
-            Math.max(
-              0,
-              Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)
-            ))
-          : durationSeconds;
+    const startedAtRaw = String(
+      formData.get('detailTimeSessionStartedAt_' + index) ?? ''
+    ).trim();
 
-      return {
-        startedAt,
-        endedAt,
-        durationSeconds: normalizedDurationSeconds
-      };
+    if (!startedAtRaw) {
+      throw new Error('Missing started_at value in time sessions');
+    }
+
+    const startedAt = new Date(startedAtRaw);
+    if (Number.isNaN(startedAt.getTime())) {
+      throw new Error(`Invalid started_at value in time sessions: ${startedAtRaw}`);
+    }
+
+    const endedAtRaw = String(
+      formData.get('detailTimeSessionEndedAt_' + index) ?? ''
+    ).trim();
+    const endedAt = endedAtRaw ? new Date(endedAtRaw) : null;
+
+    if (endedAt && Number.isNaN(endedAt.getTime())) {
+      throw new Error(`Invalid ended_at value in time sessions: ${endedAtRaw}`);
+    }
+
+    const durationRaw = String(
+      formData.get('detailTimeSessionDuration_' + index) ?? ''
+    ).trim();
+    const durationSeconds = durationRaw ? Number.parseInt(durationRaw, 10) : null;
+
+    if (durationRaw && Number.isNaN(durationSeconds)) {
+      throw new Error(
+        `Invalid duration_seconds value in time sessions: ${durationRaw}`
+      );
+    }
+
+    const normalizedDurationSeconds =
+      endedAt
+        ? (durationSeconds ??
+          Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)))
+        : durationSeconds;
+
+    sessions.push({
+      startedAt,
+      endedAt,
+      durationSeconds: normalizedDurationSeconds
     });
+  }
+
+  return sessions;
 }
 
 async function updateTaskDetailAction(taskId: number, formData: FormData) {
@@ -189,7 +203,6 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
   const linksRaw = String(formData.get('detailLinks') ?? '');
   const tagsRaw = String(formData.get('detailTags') ?? '');
   const peopleRaw = String(formData.get('detailPeople') ?? '');
-  const timeSessionsRaw = String(formData.get('detailTimeSessions') ?? '');
 
   if (!STATUS_OPTIONS.includes(status as (typeof STATUS_OPTIONS)[number])) {
     throw new Error('Invalid status');
@@ -212,7 +225,7 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
     links: parseListInput(linksRaw, '\n'),
     tags: parseListInput(tagsRaw, ','),
     people: parseListInput(peopleRaw, ','),
-    timeSessions: parseTimeSessionsInput(timeSessionsRaw)
+    timeSessions: parseTimeSessionsInput(formData)
   });
 
   revalidatePath('/');
@@ -837,16 +850,95 @@ export default async function Home({
                     />
                   </div>
 
-                  <div className='space-y-1.5'>
-                    <label htmlFor='detailTimeSessions' className='text-sm font-medium'>
-                      Time sessions (one line: startedAt|endedAt|durationSeconds)
-                    </label>
-                    <Textarea
-                      id='detailTimeSessions'
-                      name='detailTimeSessions'
-                      defaultValue={serializeTimeSessions(selectedTask.timeSessions)}
-                      className='min-h-28 font-mono text-xs'
+                  <div className='space-y-2'>
+                    <div className='space-y-1.5'>
+                      <p className='text-sm font-medium'>Time sessions</p>
+                      <p className='text-xs text-muted-foreground'>
+                        Edit each session directly using ISO date-time values.
+                      </p>
+                    </div>
+                    <input
+                      type='hidden'
+                      name='detailTimeSessionCount'
+                      value={selectedTask.timeSessions.length}
                     />
+                    {selectedTask.timeSessions.length > 0 ? (
+                      <ul className='space-y-2' aria-label='Time sessions'>
+                        {selectedTask.timeSessions.map((session, index) => (
+                          <li
+                            key={'time-session-' + index}
+                            className='rounded-md border border-border bg-muted/20 p-3'
+                            data-testid='time-session-row'
+                          >
+                            <div className='grid gap-2 sm:grid-cols-3'>
+                              <div className='space-y-1'>
+                                <label
+                                  htmlFor={'detailTimeSessionStartedAt-' + index}
+                                  className='text-xs font-medium text-muted-foreground'
+                                >
+                                  Started at
+                                </label>
+                                <Input
+                                  id={'detailTimeSessionStartedAt-' + index}
+                                  name={'detailTimeSessionStartedAt_' + index}
+                                  defaultValue={session.startedAt.toISOString()}
+                                  className='font-mono text-xs'
+                                  required
+                                />
+                              </div>
+                              <div className='space-y-1'>
+                                <label
+                                  htmlFor={'detailTimeSessionEndedAt-' + index}
+                                  className='text-xs font-medium text-muted-foreground'
+                                >
+                                  Ended at
+                                </label>
+                                <Input
+                                  id={'detailTimeSessionEndedAt-' + index}
+                                  name={'detailTimeSessionEndedAt_' + index}
+                                  defaultValue={session.endedAt ? session.endedAt.toISOString() : ''}
+                                  className='font-mono text-xs'
+                                />
+                              </div>
+                              <div className='space-y-1'>
+                                <label
+                                  htmlFor={'detailTimeSessionDuration-' + index}
+                                  className='text-xs font-medium text-muted-foreground'
+                                >
+                                  Duration (seconds)
+                                </label>
+                                <Input
+                                  id={'detailTimeSessionDuration-' + index}
+                                  name={'detailTimeSessionDuration_' + index}
+                                  defaultValue={session.durationSeconds ?? ''}
+                                  className='font-mono text-xs'
+                                  inputMode='numeric'
+                                />
+                              </div>
+                            </div>
+                            <div className='mt-2'>
+                              <label
+                                htmlFor={'detailTimeSessionRemove-' + index}
+                                className='inline-flex items-center gap-2 text-xs text-muted-foreground'
+                              >
+                                <input
+                                  id={'detailTimeSessionRemove-' + index}
+                                  type='checkbox'
+                                  name={'detailTimeSessionRemove_' + index}
+                                  value='1'
+                                  className='size-4 rounded border-border align-middle'
+                                />
+                                Remove this session on save
+                              </label>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className='rounded-md border border-border bg-muted/20 p-3 text-xs text-muted-foreground'>
+                        No time sessions yet.
+                      </p>
+                    )}
                   </div>
 
                   <dl className='space-y-1 rounded-md border border-border bg-muted/20 p-3 text-xs'>
