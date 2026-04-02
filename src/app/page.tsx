@@ -269,6 +269,22 @@ function formatTimestamp(value: Date) {
   }).format(value);
 }
 
+function getLinkDomainHint(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+function truncateLinkLabel(url: string, maxLength = 96) {
+  if (url.length <= maxLength) {
+    return url;
+  }
+
+  return `${url.slice(0, maxLength).trimEnd()}…`;
+}
+
 export default async function Home({
   searchParams
 }: {
@@ -769,6 +785,34 @@ export default async function Home({
                       defaultValue={selectedTask.links.join('\n')}
                       className='min-h-24'
                     />
+                    {selectedTask.links.length > 0 ? (
+                      <ul
+                        className='space-y-1 rounded-md border border-border bg-muted/20 p-2 text-sm'
+                        aria-label='Attached links'
+                      >
+                        {selectedTask.links.map((link) => {
+                          const domainHint = getLinkDomainHint(link);
+
+                          return (
+                            <li key={link} className='flex items-center justify-between gap-3'>
+                              <a
+                                href={link}
+                                target='_blank'
+                                rel='noreferrer noopener'
+                                className='truncate text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                              >
+                                {truncateLinkLabel(link)}
+                              </a>
+                              {domainHint ? (
+                                <span className='shrink-0 text-xs text-muted-foreground'>
+                                  {domainHint}
+                                </span>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
                   </div>
 
                   <div className='space-y-1.5'>
