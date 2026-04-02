@@ -9,11 +9,11 @@ test("mark task done and reopen persists status while preserving later flag", as
   await page.getByLabel("Title *").fill(title)
   await page.getByRole("button", { name: "Create task" }).click()
 
-  const card = page.locator("li", { hasText: title })
+  const card = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(card).toBeVisible()
   await expect(card).toContainText("open")
 
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
 
   await page.locator("#detailLater").focus()
   await page.keyboard.press("Space")
@@ -32,7 +32,7 @@ test("mark task done and reopen persists status while preserving later flag", as
   await expect(page.getByRole("button", { name: "Reopen task" })).toBeVisible()
 
   await page.reload()
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
 
   await expect(card).toContainText("done")
   await expect(card).toContainText("later")
@@ -47,13 +47,13 @@ test("mark task done and reopen persists status while preserving later flag", as
   await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
 
   await page.reload()
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
 
-  const persistedCard = page.locator("li", { hasText: title })
+  const persistedCard = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(persistedCard).toBeVisible()
   await expect(persistedCard).toContainText("open")
   await expect(persistedCard).toContainText("later")
   await expect(page.locator("#detailStatus")).toContainText("open")
   await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
 })
-
+

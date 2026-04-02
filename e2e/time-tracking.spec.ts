@@ -29,7 +29,7 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
-  const card = page.locator("li", { hasText: title })
+  const card = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(card).toBeVisible()
   await expect(card).toContainText("Stopped")
   await expect(card).toContainText("Today: 0m")
@@ -43,7 +43,7 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
   await card.getByRole("button", { name: "Stop tracking" }).click()
   await expect(card).toContainText("Stopped")
 
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
 
   const sessionRows = page.locator("#task-detail [data-testid='time-session-row']")
   await expect(sessionRows).toHaveCount(1)
@@ -60,11 +60,11 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
 
   await page.reload()
 
-  const persistedCard = page.locator("li", { hasText: title })
+  const persistedCard = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(persistedCard).toContainText("Stopped")
   await expect(persistedCard).toContainText("Total: 2m")
 
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
   await expect(page.locator("#detailTimeSessionEndedAt-0")).toHaveValue(correctedEndedAt.toISOString())
 
@@ -80,14 +80,14 @@ test("double start submission does not create duplicate running sessions", async
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
-  const card = page.locator("li", { hasText: title })
+  const card = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(card).toBeVisible()
 
   await card.getByRole("button", { name: "Start tracking" }).dblclick()
 
   await expect(card.getByRole("button", { name: "Stop tracking" })).toBeVisible({ timeout: 10000 })
 
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
 
   const sessionRows = page.locator("#task-detail [data-testid='time-session-row']")
   await expect(sessionRows).toHaveCount(1)
@@ -104,7 +104,7 @@ test("double stop submission does not mutate ended session twice", async ({ page
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
-  const card = page.locator("li", { hasText: title })
+  const card = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(card).toBeVisible()
 
   await card.getByRole("button", { name: "Start tracking" }).click()
@@ -115,7 +115,7 @@ test("double stop submission does not mutate ended session twice", async ({ page
   await card.getByRole("button", { name: "Stop tracking" }).dblclick()
   await expect(card).toContainText("Stopped")
 
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
 
   const sessionRows = page.locator("#task-detail [data-testid='time-session-row']")
   await expect(sessionRows).toHaveCount(1)
@@ -151,7 +151,7 @@ test("today totals include overlap for sessions that started before midnight", a
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
-  const card = page.locator("li", { hasText: title })
+  const card = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(card).toBeVisible()
 
   await card.getByRole("button", { name: "Start tracking" }).click()
@@ -159,7 +159,7 @@ test("today totals include overlap for sessions that started before midnight", a
   await page.waitForTimeout(1100)
   await card.getByRole("button", { name: "Stop tracking" }).click()
 
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
 
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
   await page.locator("#detailTimeSessionStartedAt-0").fill(startedAt.toISOString())
@@ -181,7 +181,7 @@ test("editing only endedAt recomputes persisted duration and updates totals", as
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
-  const card = page.locator("li", { hasText: title })
+  const card = page.getByTestId('main-task-list').locator("li", { hasText: title })
 
   await card.getByRole("button", { name: "Start tracking" }).click()
   await expect(card.getByRole("button", { name: "Stop tracking" })).toBeVisible({ timeout: 10000 })
@@ -189,7 +189,7 @@ test("editing only endedAt recomputes persisted duration and updates totals", as
   await page.waitForTimeout(1200)
   await card.getByRole("button", { name: "Stop tracking" }).click()
 
-  await page.getByRole("link", { name: title }).click()
+  await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
 
   const startedAtRaw = await page.locator("#detailTimeSessionStartedAt-0").inputValue()
   const startedAt = new Date(startedAtRaw)
@@ -202,6 +202,6 @@ test("editing only endedAt recomputes persisted duration and updates totals", as
   await expect(card).toContainText("Total: 10m")
 
   await page.reload()
-  const persistedCard = page.locator("li", { hasText: title })
+  const persistedCard = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(persistedCard).toContainText("Total: 10m")
 })

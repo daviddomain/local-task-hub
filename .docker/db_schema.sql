@@ -109,3 +109,16 @@ CREATE TABLE IF NOT EXISTS task_time_sessions (
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS task_recent_opens (
+  task_id BIGINT UNSIGNED NOT NULL,
+  last_opened_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (task_id),
+  CONSTRAINT fk_task_recent_opens_task_id
+    FOREIGN KEY (task_id)
+    REFERENCES tasks(id)
+    ON DELETE CASCADE,
+  INDEX idx_task_recent_opens_last_opened_at (last_opened_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
