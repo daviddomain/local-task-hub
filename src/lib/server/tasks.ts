@@ -109,6 +109,13 @@ export type TaskTimeSession = {
   durationSeconds: number | null
 }
 
+export type TodayWorkedSummaryItem = {
+  taskId: number
+  title: string
+  trackedSeconds: number
+  sessionCount: number
+}
+
 export type TaskDetail = {
   id: number
   title: string
@@ -515,6 +522,53 @@ export async function listTasks(filters: TaskListFilters = {}) {
   )
 
   return rows.map(mapRow)
+}
+
+export async function listTodayWorkedSummary(): Promise<TodayWorkedSummaryItem[]> {
+  const [rows] = await getDbPool().query<
+    Array<
+      RowDataPacket & {
+        task_id: number
+        title: string
+        tracked_seconds: number | null
+        session_count: number | null
+      }
+    >
+  >(
+    `
+      SELECT
+        t.id AS task_id,
+        t.title,
+        COALESCE(
+          SUM(
+            GREATEST(
+              0,
+              TIMESTAMPDIFF(
+                SECOND,
+                GREATEST(ts.started_at, CURRENT_DATE()),
+                LEAST(COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3)), CURRENT_TIMESTAMP(3))
+              )
+            )
+          ),
+          0
+        ) AS tracked_seconds,
+        COUNT(*) AS session_count
+      FROM task_time_sessions ts
+      INNER JOIN tasks t ON t.id = ts.task_id
+      WHERE COALESCE(ts.ended_at, CURRENT_TIMESTAMP(3)) > CURRENT_DATE()
+        AND ts.started_at < CURRENT_TIMESTAMP(3)
+      GROUP BY t.id, t.title
+      HAVING tracked_seconds > 0
+      ORDER BY tracked_seconds DESC, t.updated_at DESC, t.id DESC
+    `,
+  )
+
+  return rows.map((row) => ({
+    taskId: Number(row.task_id),
+    title: row.title,
+    trackedSeconds: Number(row.tracked_seconds ?? 0),
+    sessionCount: Number(row.session_count ?? 0),
+  }))
 }
 
 export async function getTaskDetail(taskId: number) {
