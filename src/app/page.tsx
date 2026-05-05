@@ -8,9 +8,11 @@ import {
   getTaskDetail,
   listRecentlyOpenedTasks,
   listTasks,
+  listTodayWorkedSummary,
   recordTaskOpened,
   updateTaskDetail,
   type Task,
+  type TodayWorkedSummaryItem,
   type TaskListFilters,
   type TaskSourceType,
   type TaskTimeRelationFilter
@@ -59,6 +61,8 @@ const STATUS_OPTIONS = [
   'review',
   'done'
 ] as const;
+
+const TODAY_WORKED_SUMMARY_VISIBLE_LIMIT = 5;
 
 async function createTaskAction(formData: FormData) {
   'use server';
@@ -276,6 +280,10 @@ function getTaskTotalLabel(task: Task) {
   return task.totalTrackedSeconds > 0 ? formatDuration(task.totalTrackedSeconds) : '0m';
 }
 
+function getTodayWorkedSummarySessionLabel(item: TodayWorkedSummaryItem) {
+  return item.sessionCount === 1 ? '1 session' : `${item.sessionCount} sessions`;
+}
+
 function formatTimestamp(value: Date) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
@@ -353,6 +361,12 @@ export default async function Home({
 
   const recentlyOpenedTasks = await listRecentlyOpenedTasks();
   const todayTotalTrackedSeconds = await getTodayTotalTrackedSeconds();
+  const todayWorkedSummary = await listTodayWorkedSummary();
+  const visibleTodayWorkedSummary = todayWorkedSummary.slice(0, TODAY_WORKED_SUMMARY_VISIBLE_LIMIT);
+  const hiddenTodayWorkedSummaryCount = Math.max(
+    0,
+    todayWorkedSummary.length - visibleTodayWorkedSummary.length
+  );
 
   const peopleOptions = [...new Set(allTasks.flatMap((task) => task.people))].sort((a, b) =>
     a.localeCompare(b)
@@ -452,12 +466,63 @@ export default async function Home({
                 </div>
               </div>
 
-              <p className='text-sm text-muted-foreground'>
-                Today total tracked:{' '}
-                <span className='font-medium text-foreground'>
-                  {formatDuration(todayTotalTrackedSeconds)}
-                </span>
-              </p>
+              <div className='space-y-3'>
+                <p className='text-sm text-muted-foreground'>
+                  Today total tracked:{' '}
+                  <span className='font-medium text-foreground'>
+                    {formatDuration(todayTotalTrackedSeconds)}
+                  </span>
+                </p>
+
+                <div
+                  className='rounded-lg border border-border bg-muted/20 p-3'
+                  aria-label='Today worked summary'
+                  data-testid='today-worked-summary'
+                >
+                  <div className='flex items-center justify-between gap-3'>
+                    <div>
+                      <p className='text-sm font-medium text-foreground'>Today worked summary</p>
+                      <p className='text-xs text-muted-foreground'>Current day only, grouped by task.</p>
+                    </div>
+                    <p className='text-sm font-medium text-foreground'>
+                      {formatDuration(todayTotalTrackedSeconds)}
+                    </p>
+                  </div>
+
+                  {todayWorkedSummary.length === 0 ? (
+                    <p className='mt-3 text-sm text-muted-foreground'>
+                      No tracked time recorded for today yet.
+                    </p>
+                  ) : (
+                    <>
+                      <ul className='mt-3 space-y-2'>
+                        {visibleTodayWorkedSummary.map((item) => (
+                          <li
+                            key={item.taskId}
+                            className='flex items-center justify-between gap-3 rounded-md border border-border/70 bg-background/60 px-3 py-2'
+                          >
+                            <div className='min-w-0'>
+                              <p className='truncate text-sm font-medium text-foreground'>{item.title}</p>
+                              <p className='text-xs text-muted-foreground'>
+                                {getTodayWorkedSummarySessionLabel(item)}
+                              </p>
+                            </div>
+                            <p className='shrink-0 text-sm font-medium text-foreground'>
+                              {formatDuration(item.trackedSeconds)}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {hiddenTodayWorkedSummaryCount > 0 ? (
+                        <p className='mt-2 text-xs text-muted-foreground'>
+                          + {hiddenTodayWorkedSummaryCount} more tasks tracked today
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              </div>
 
               <fieldset className='space-y-3' aria-label='Task filters'>
                 <legend className='text-sm font-medium'>Filters</legend>
