@@ -29,6 +29,7 @@ import {
 type TaskTrackingAction = (formData: FormData) => Promise<void>;
 
 type TaskListProps = {
+	openQuickAddHref: string;
 	selectedTaskId: number | null;
 	startTrackingAction: TaskTrackingAction;
 	stopTrackingAction: TaskTrackingAction;
@@ -37,6 +38,7 @@ type TaskListProps = {
 };
 
 export function TaskList({
+	openQuickAddHref,
 	selectedTaskId,
 	startTrackingAction,
 	stopTrackingAction,
@@ -44,7 +46,7 @@ export function TaskList({
 	tasks
 }: TaskListProps) {
 	return (
-		<Card className='min-h-[420px]'>
+		<Card className='flex min-h-[520px] lg:h-[calc(100vh-4rem)] flex-col'>
 			<CardHeader className='border-b border-border'>
 				<CardTitle className='text-base tracking-tight'>Task list</CardTitle>
 				<CardDescription>
@@ -52,7 +54,7 @@ export function TaskList({
 					current search and filters.
 				</CardDescription>
 			</CardHeader>
-			<CardContent>
+			<CardContent className='min-h-0 flex-1 overflow-y-auto'>
 				{tasks.length === 0 ?
 					<Empty className='border border-dashed border-border bg-muted/20'>
 						<EmptyHeader>
@@ -72,7 +74,7 @@ export function TaskList({
 								asChild
 								type='button'
 								variant='secondary'>
-								<a href='#quick-add'>
+								<a href={openQuickAddHref}>
 									<Plus
 										aria-hidden='true'
 										className='size-4'

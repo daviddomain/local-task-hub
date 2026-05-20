@@ -7,9 +7,18 @@ function buildUnique(testName: string) {
 async function submitQuickAdd(page: import("@playwright/test").Page) {
   const createButton = page.getByRole("button", { name: "Create task" })
   await expect(createButton).toBeVisible()
-  await createButton.evaluate((element) => {
-    ;(element as HTMLButtonElement).click()
-  })
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === "POST"),
+    createButton.click(),
+  ])
+}
+
+async function openQuickAdd(page: import("@playwright/test").Page) {
+  await Promise.all([
+    page.waitForURL(/quickAdd=1/, { waitUntil: "domcontentloaded" }),
+    page.getByRole("link", { name: "Create task" }).click(),
+  ])
+  await expect(page.getByRole("dialog", { name: "Quick add" })).toBeVisible()
 }
 
 async function saveTaskDetail(page: import("@playwright/test").Page) {
@@ -26,6 +35,7 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
 
   await page.goto("/")
 
+  await openQuickAdd(page)
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
@@ -77,6 +87,7 @@ test("double start submission does not create duplicate running sessions", async
 
   await page.goto("/")
 
+  await openQuickAdd(page)
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
@@ -101,6 +112,7 @@ test("double stop submission does not mutate ended session twice", async ({ page
 
   await page.goto("/")
 
+  await openQuickAdd(page)
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
@@ -148,6 +160,7 @@ test("today totals include overlap for sessions that started before midnight", a
 
   await page.goto("/")
 
+  await openQuickAdd(page)
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 
@@ -178,6 +191,7 @@ test("editing only endedAt recomputes persisted duration and updates totals", as
 
   await page.goto("/")
 
+  await openQuickAdd(page)
   await page.getByLabel("Title *").fill(title)
   await submitQuickAdd(page)
 

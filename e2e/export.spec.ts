@@ -7,9 +7,18 @@ function uniqueToken() {
 async function submitQuickAdd(page: import('@playwright/test').Page) {
   const createButton = page.getByRole('button', { name: 'Create task' })
   await expect(createButton).toBeVisible()
-  await createButton.evaluate((element) => {
-    ;(element as HTMLButtonElement).click()
-  })
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === 'POST'),
+    createButton.click(),
+  ])
+}
+
+async function openQuickAdd(page: import('@playwright/test').Page) {
+  await Promise.all([
+    page.waitForURL(/quickAdd=1/, { waitUntil: 'domcontentloaded' }),
+    page.getByRole('link', { name: 'Create task' }).click(),
+  ])
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
 }
 
 async function openTaskDetail(page: import('@playwright/test').Page, title: string) {
@@ -33,6 +42,7 @@ test('exports selected task as markdown and open tasks as JSON', async ({ page }
 
   await page.goto('/')
 
+  await openQuickAdd(page)
   await page.getByLabel('Title *').fill(openTitle)
   await page.getByLabel('Note (optional)').fill(`Note ${unique}`)
   await page.getByLabel('First link (optional)').fill(`https://github.com/vercel/next.js/issues/${unique}`)
@@ -42,6 +52,7 @@ test('exports selected task as markdown and open tasks as JSON', async ({ page }
 
   await expect(page.getByTestId('main-task-list').locator('li', { hasText: openTitle })).toBeVisible()
 
+  await openQuickAdd(page)
   await page.getByLabel('Title *').fill(doneTitle)
   await submitQuickAdd(page)
   await expect(page.getByTestId('main-task-list').locator('li', { hasText: doneTitle })).toBeVisible()

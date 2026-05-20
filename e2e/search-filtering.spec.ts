@@ -14,9 +14,18 @@ async function withDbConnection() {
 async function submitQuickAdd(page: import('@playwright/test').Page) {
   const createButton = page.getByRole('button', { name: 'Create task' })
   await expect(createButton).toBeVisible()
-  await createButton.evaluate((element) => {
-    ;(element as HTMLButtonElement).click()
-  })
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === 'POST'),
+    createButton.click(),
+  ])
+}
+
+async function openQuickAdd(page: import('@playwright/test').Page) {
+  await Promise.all([
+    page.waitForURL(/quickAdd=1/, { waitUntil: 'domcontentloaded' }),
+    page.getByRole('link', { name: 'Create task' }).click(),
+  ])
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
 }
 
 test('live search and combinable filters work with persisted data', async ({ page }) => {
@@ -31,6 +40,7 @@ test('live search and combinable filters work with persisted data', async ({ pag
 
   await page.goto('/')
 
+  await openQuickAdd(page)
   await page.getByLabel('Title *').fill(targetTitle)
   await page.getByLabel('Note (optional)').fill(`Contains ${noteToken}`)
   await page
@@ -43,6 +53,7 @@ test('live search and combinable filters work with persisted data', async ({ pag
   const targetCard = page.locator('li', { hasText: targetTitle })
   await expect(targetCard).toBeVisible()
 
+  await openQuickAdd(page)
   await page.getByLabel('Title *').fill(otherTitle)
   await page.getByLabel('Note (optional)').fill(`other-${unique}`)
   await page.getByLabel('First link (optional)').fill(`https://example.com/${unique}`)
@@ -124,4 +135,4 @@ test('live search and combinable filters work with persisted data', async ({ pag
   await expect(page.locator('li', { hasText: targetTitle })).toBeVisible()
   await expect(page.locator('li', { hasText: otherTitle })).toHaveCount(0)
 })
-
+

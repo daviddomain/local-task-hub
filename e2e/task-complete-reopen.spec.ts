@@ -6,8 +6,16 @@ test("mark task done and reopen persists status while preserving later flag", as
 
   await page.goto("/")
 
+  await Promise.all([
+    page.waitForURL(/quickAdd=1/, { waitUntil: "domcontentloaded" }),
+    page.getByRole("link", { name: "Create task" }).click(),
+  ])
+  await expect(page.getByRole("dialog", { name: "Quick add" })).toBeVisible()
   await page.getByLabel("Title *").fill(title)
-  await page.getByRole("button", { name: "Create task" }).click()
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === "POST"),
+    page.getByRole("button", { name: "Create task" }).click(),
+  ])
 
   const card = page.getByTestId('main-task-list').locator("li", { hasText: title })
   await expect(card).toBeVisible()

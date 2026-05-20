@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { Download, Plus } from 'lucide-react';
@@ -20,12 +19,15 @@ import {
 	startTaskTimeTracking,
 	stopTaskTimeTracking
 } from '@/lib/server/time-tracking';
+import { QuickAddDialogContent } from '@/components/quick-add-dialog-content';
 import { RecentlyOpenedTasks } from '@/components/recently-opened-tasks';
+import { TaskDetailDialogContent } from '@/components/task-detail-dialog-content';
 import { TaskFilters } from '@/components/task-filters';
 import { TaskList } from '@/components/task-list';
 import { TaskSearchInput } from '@/components/task-search-input';
 import { SOURCE_LABELS } from '@/components/task-display-helpers';
 import { TodayWorkedSummary } from '@/components/today-worked-summary';
+import { UrlDialog } from '@/components/url-dialog';
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -34,16 +36,6 @@ import {
 	CardHeader,
 	CardTitle
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-	Empty,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyTitle
-} from '@/components/ui/empty';
-import { Input } from '@/components/ui/input';
-import { SelectFormField } from '@/components/select-form-field';
-import { Textarea } from '@/components/ui/textarea';
 
 const STATUS_OPTIONS = [
 	'open',
@@ -56,6 +48,16 @@ const STATUS_OPTIONS = [
 
 const TODAY_WORKED_SUMMARY_VISIBLE_LIMIT = 5;
 
+function getSafeRedirectPath(value: FormDataEntryValue | null) {
+	const redirectPath = String(value ?? '').trim();
+
+	if (!redirectPath.startsWith('/') || redirectPath.startsWith('//')) {
+		return '/';
+	}
+
+	return redirectPath;
+}
+
 async function createTaskAction(formData: FormData) {
 	'use server';
 
@@ -65,6 +67,7 @@ async function createTaskAction(formData: FormData) {
 	const tagsRaw = String(formData.get('tags') ?? '');
 	const peopleRaw = String(formData.get('people') ?? '');
 	const startTrackingNow = formData.get('startTrackingNow') === 'on';
+	const returnTo = getSafeRedirectPath(formData.get('returnTo'));
 
 	const tags = tagsRaw
 		.split(',')
@@ -86,6 +89,7 @@ async function createTaskAction(formData: FormData) {
 	});
 
 	revalidatePath('/');
+	redirect(returnTo);
 }
 
 async function startTrackingAction(formData: FormData) {
@@ -206,6 +210,7 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
 	const linksRaw = String(formData.get('detailLinks') ?? '');
 	const tagsRaw = String(formData.get('detailTags') ?? '');
 	const peopleRaw = String(formData.get('detailPeople') ?? '');
+	const detailReturnTo = getSafeRedirectPath(formData.get('detailReturnTo'));
 
 	if (!STATUS_OPTIONS.includes(status as (typeof STATUS_OPTIONS)[number])) {
 		throw new Error('Invalid status');
@@ -232,30 +237,26 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
 	});
 
 	revalidatePath('/');
-	redirect(`/?taskId=${taskId}#task-detail`);
+	redirect(detailReturnTo);
 }
 
-function formatTimestamp(value: Date) {
-	return new Intl.DateTimeFormat(undefined, {
-		dateStyle: 'medium',
-		timeStyle: 'short'
-	}).format(value);
+function getFirstParam(
+	params: Record<string, string | string[] | undefined>,
+	key: string
+) {
+	const value = params[key];
+	return Array.isArray(value) ? value[0] : value;
 }
 
-function getLinkDomainHint(url: string) {
-	try {
-		return new URL(url).hostname.replace(/^www\./, '');
-	} catch {
-		return null;
-	}
-}
+function buildHref(baseParams: URLSearchParams, values: Record<string, string>) {
+	const params = new URLSearchParams(baseParams);
 
-function truncateLinkLabel(url: string, maxLength = 96) {
-	if (url.length <= maxLength) {
-		return url;
+	for (const [key, value] of Object.entries(values)) {
+		params.set(key, value);
 	}
 
-	return `${url.slice(0, maxLength).trimEnd()}...`;
+	const query = params.toString();
+	return query ? `/?${query}` : '/';
 }
 
 export default async function Home({
@@ -264,19 +265,15 @@ export default async function Home({
 	searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
 	const params = await searchParams;
-	const taskIdParam =
-		Array.isArray(params.taskId) ? params.taskId[0] : params.taskId;
-	const queryParam = Array.isArray(params.q) ? params.q[0] : params.q;
-	const statusParam =
-		Array.isArray(params.status) ? params.status[0] : params.status;
-	const laterParam =
-		Array.isArray(params.later) ? params.later[0] : params.later;
-	const personParam =
-		Array.isArray(params.person) ? params.person[0] : params.person;
-	const tagParam = Array.isArray(params.tag) ? params.tag[0] : params.tag;
-	const timeParam = Array.isArray(params.time) ? params.time[0] : params.time;
-	const sourceParam =
-		Array.isArray(params.source) ? params.source[0] : params.source;
+	const taskIdParam = getFirstParam(params, 'taskId');
+	const queryParam = getFirstParam(params, 'q');
+	const statusParam = getFirstParam(params, 'status');
+	const laterParam = getFirstParam(params, 'later');
+	const personParam = getFirstParam(params, 'person');
+	const tagParam = getFirstParam(params, 'tag');
+	const timeParam = getFirstParam(params, 'time');
+	const sourceParam = getFirstParam(params, 'source');
+	const quickAddParam = getFirstParam(params, 'quickAdd');
 
 	const selectedTaskId = Number.parseInt(taskIdParam ?? '', 10);
 
@@ -391,9 +388,17 @@ export default async function Home({
 		taskLinkParams.set('source', filters.source);
 	}
 
+	const taskListParams = taskLinkParams.toString();
+	const closeHref = buildHref(taskLinkParams, {});
+	const openQuickAddHref = buildHref(taskLinkParams, { quickAdd: '1' });
+	const selectedTaskHref =
+		selectedTask ?
+			`${buildHref(taskLinkParams, { taskId: String(selectedTask.id) })}#task-detail`
+		:	closeHref;
+
 	return (
 		<div className='mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-10'>
-			<main className='grid gap-6 lg:grid-cols-[1fr_1fr]'>
+			<main className='grid gap-6 lg:grid-cols-[minmax(320px,0.82fr)_minmax(0,1.18fr)]'>
 				<section
 					className='space-y-6'
 					aria-label='Task workspace'>
@@ -408,7 +413,7 @@ export default async function Home({
 							</CardDescription>
 						</CardHeader>
 						<CardContent className='space-y-5'>
-							<div className='grid gap-4 lg:grid-cols-[1fr_auto]'>
+							<div className='grid gap-4'>
 								<div className='space-y-2'>
 									<label
 										htmlFor='task-search'
@@ -418,11 +423,11 @@ export default async function Home({
 									<TaskSearchInput />
 								</div>
 
-								<div className='flex flex-wrap items-end gap-2'>
+								<div className='flex flex-wrap gap-2'>
 									<Button
 										asChild
-										className='w-full lg:w-auto'>
-										<a href='#quick-add'>
+										className='w-full sm:w-auto'>
+										<a href={openQuickAddHref}>
 											<Plus
 												aria-hidden='true'
 												className='size-4'
@@ -433,7 +438,7 @@ export default async function Home({
 									<Button
 										asChild
 										variant='outline'
-										className='w-full lg:w-auto'>
+										className='w-full sm:w-auto'>
 										<a href='/api/exports/tasks/open'>
 											<Download
 												aria-hidden='true'
@@ -463,439 +468,50 @@ export default async function Home({
 
 					<RecentlyOpenedTasks
 						recentlyOpenedTasks={recentlyOpenedTasks}
-						taskLinkParams={taskLinkParams.toString()}
-					/>
-
-					<TaskList
-						selectedTaskId={selectedTask?.id ?? null}
-						startTrackingAction={startTrackingAction}
-						stopTrackingAction={stopTrackingAction}
-						taskLinkParams={taskLinkParams.toString()}
-						tasks={tasks}
+						taskLinkParams={taskListParams}
 					/>
 				</section>
 
-				<aside
-					className='space-y-6 lg:sticky lg:top-8 lg:self-start'
-					aria-label='Task detail and quick add'>
-					<Card id='task-detail'>
-						<CardHeader className='border-b border-border'>
-							<CardTitle className='text-base tracking-tight'>
-								Task detail
-							</CardTitle>
-							<CardDescription>
-								{selectedTask ?
-									'Phase 1 task payload fields are editable and persisted in MySQL.'
-								:	'Select a task title from the list to open details.'}
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{selectedTask ?
-								<form
-									action={updateTaskDetailAction.bind(null, selectedTask.id)}
-									className='space-y-4'>
-									<div className='space-y-1.5'>
-										<label
-											htmlFor='detailTitle'
-											className='text-sm font-medium'>
-											Title
-										</label>
-										<Input
-											id='detailTitle'
-											name='detailTitle'
-											defaultValue={selectedTask.title}
-											required
-										/>
-									</div>
-
-									<div className='grid gap-3 sm:grid-cols-2'>
-										<div className='space-y-1.5'>
-											<label
-												htmlFor='detailStatus'
-												className='text-sm font-medium'>
-												Status
-											</label>
-											<SelectFormField
-												id='detailStatus'
-												name='detailStatus'
-												ariaLabel='Status'
-												value={selectedTask.status}
-												placeholder='Status'
-												triggerClassName='w-full rounded-md'
-												options={STATUS_OPTIONS.map((statusOption) => ({
-													value: statusOption,
-													label: statusOption
-												}))}
-											/>
-										</div>
-
-										<div className='flex items-end'>
-											<label className='flex items-center gap-2 text-sm'>
-												<Checkbox
-													id='detailLater'
-													name='detailLater'
-													defaultChecked={selectedTask.later}
-												/>
-												Later
-											</label>
-										</div>
-									</div>
-
-									<div className='space-y-1.5'>
-										<label
-											htmlFor='detailNote'
-											className='text-sm font-medium'>
-											Note (markdown text)
-										</label>
-										<Textarea
-											id='detailNote'
-											name='detailNote'
-											defaultValue={selectedTask.note ?? ''}
-											className='min-h-28'
-										/>
-										{selectedTask.note ?
-											<pre className='max-h-24 overflow-auto rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground'>
-												{selectedTask.note}
-											</pre>
-										:	null}
-									</div>
-
-									<div className='space-y-1.5'>
-										<label
-											htmlFor='detailLinks'
-											className='text-sm font-medium'>
-											Links (one URL per line)
-										</label>
-										<Textarea
-											id='detailLinks'
-											name='detailLinks'
-											defaultValue={selectedTask.links.join('\n')}
-											className='min-h-24'
-										/>
-										{selectedTask.links.length > 0 ?
-											<ul
-												className='space-y-1 rounded-md border border-border bg-muted/20 p-2 text-sm'
-												aria-label='Attached links'>
-												{selectedTask.links.map((link) => {
-													const domainHint = getLinkDomainHint(link);
-
-													return (
-														<li
-															key={link}
-															className='flex items-center justify-between gap-3'>
-															<a
-																href={link}
-																target='_blank'
-																rel='noreferrer noopener'
-																className='truncate text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
-																{truncateLinkLabel(link)}
-															</a>
-															{domainHint ?
-																<span className='shrink-0 text-xs text-muted-foreground'>
-																	{domainHint}
-																</span>
-															:	null}
-														</li>
-													);
-												})}
-											</ul>
-										:	null}
-									</div>
-
-									<div className='space-y-1.5'>
-										<label
-											htmlFor='detailTags'
-											className='text-sm font-medium'>
-											Tags (comma-separated)
-										</label>
-										<Input
-											id='detailTags'
-											name='detailTags'
-											defaultValue={selectedTask.tags.join(', ')}
-										/>
-									</div>
-
-									<div className='space-y-1.5'>
-										<label
-											htmlFor='detailPeople'
-											className='text-sm font-medium'>
-											Person references (comma-separated)
-										</label>
-										<Input
-											id='detailPeople'
-											name='detailPeople'
-											defaultValue={selectedTask.people.join(', ')}
-										/>
-									</div>
-
-									<div className='space-y-2'>
-										<div className='space-y-1.5'>
-											<p className='text-sm font-medium'>Time sessions</p>
-											<p className='text-xs text-muted-foreground'>
-												Edit each session directly using ISO date-time values.
-											</p>
-										</div>
-										<input
-											type='hidden'
-											name='detailTimeSessionCount'
-											value={selectedTask.timeSessions.length}
-										/>
-										{selectedTask.timeSessions.length > 0 ?
-											<ul
-												className='space-y-2'
-												aria-label='Time sessions'>
-												{selectedTask.timeSessions.map((session, index) => (
-													<li
-														key={'time-session-' + index}
-														className='rounded-md border border-border bg-muted/20 p-3'
-														data-testid='time-session-row'>
-														<div className='grid gap-2 sm:grid-cols-3'>
-															<div className='space-y-1'>
-																<label
-																	htmlFor={
-																		'detailTimeSessionStartedAt-' + index
-																	}
-																	className='text-xs font-medium text-muted-foreground'>
-																	Started at
-																</label>
-																<Input
-																	id={'detailTimeSessionStartedAt-' + index}
-																	name={'detailTimeSessionStartedAt_' + index}
-																	defaultValue={session.startedAt.toISOString()}
-																	className='font-mono text-xs'
-																	required
-																/>
-															</div>
-															<div className='space-y-1'>
-																<label
-																	htmlFor={'detailTimeSessionEndedAt-' + index}
-																	className='text-xs font-medium text-muted-foreground'>
-																	Ended at
-																</label>
-																<Input
-																	id={'detailTimeSessionEndedAt-' + index}
-																	name={'detailTimeSessionEndedAt_' + index}
-																	defaultValue={
-																		session.endedAt ?
-																			session.endedAt.toISOString()
-																		:	''
-																	}
-																	className='font-mono text-xs'
-																/>
-															</div>
-															<div className='space-y-1'>
-																<label
-																	htmlFor={'detailTimeSessionDuration-' + index}
-																	className='text-xs font-medium text-muted-foreground'>
-																	Duration (seconds)
-																</label>
-																<Input
-																	id={'detailTimeSessionDuration-' + index}
-																	name={'detailTimeSessionDuration_' + index}
-																	defaultValue={session.durationSeconds ?? ''}
-																	className='font-mono text-xs'
-																	inputMode='numeric'
-																/>
-															</div>
-														</div>
-														<div className='mt-2'>
-															<label
-																htmlFor={'detailTimeSessionRemove-' + index}
-																className='inline-flex items-center gap-2 text-xs text-muted-foreground'>
-																<input
-																	id={'detailTimeSessionRemove-' + index}
-																	type='checkbox'
-																	name={'detailTimeSessionRemove_' + index}
-																	value='1'
-																	className='size-4 rounded border-border align-middle'
-																/>
-																Remove this session on save
-															</label>
-														</div>
-													</li>
-												))}
-											</ul>
-										:	<p className='rounded-md border border-border bg-muted/20 p-3 text-xs text-muted-foreground'>
-												No time sessions yet.
-											</p>
-										}
-									</div>
-
-									<dl className='space-y-1 rounded-md border border-border bg-muted/20 p-3 text-xs'>
-										<div className='flex justify-between gap-3'>
-											<dt className='text-muted-foreground'>Created</dt>
-											<dd>
-												<time dateTime={selectedTask.createdAt.toISOString()}>
-													{formatTimestamp(selectedTask.createdAt)}
-												</time>
-											</dd>
-										</div>
-										<div className='flex justify-between gap-3'>
-											<dt className='text-muted-foreground'>Updated</dt>
-											<dd>
-												<time dateTime={selectedTask.updatedAt.toISOString()}>
-													{formatTimestamp(selectedTask.updatedAt)}
-												</time>
-											</dd>
-										</div>
-									</dl>
-
-									<div className='flex flex-wrap gap-2'>
-										<Button
-											type='submit'
-											className='flex-1'>
-											Save detail
-										</Button>
-										<Button
-											asChild
-											type='button'
-											variant='outline'>
-											<a href={`/api/exports/task/${selectedTask.id}/markdown`}>
-												<Download
-													aria-hidden='true'
-													className='size-4'
-												/>
-												Export markdown
-											</a>
-										</Button>
-										{selectedTask.status === 'done' ?
-											<Button
-												type='submit'
-												name='detailStatusTransition'
-												value='reopen'
-												variant='secondary'>
-												Reopen task
-											</Button>
-										:	<Button
-												type='submit'
-												name='detailStatusTransition'
-												value='done'
-												variant='secondary'>
-												Mark done
-											</Button>
-										}
-										<Button
-											asChild
-											type='button'
-											variant='outline'>
-											<Link href='/'>Close</Link>
-										</Button>
-									</div>
-								</form>
-							:	<Empty>
-									<EmptyHeader>
-										<EmptyTitle>No task selected</EmptyTitle>
-										<EmptyDescription>
-											Choose a task from the list to view and edit detail
-											fields.
-										</EmptyDescription>
-									</EmptyHeader>
-								</Empty>
-							}
-						</CardContent>
-					</Card>
-
-					<Card
-						id='quick-add'
-						aria-label='Quick add'>
-						<CardHeader className='border-b border-border'>
-							<CardTitle className='text-base tracking-tight'>
-								Quick add
-							</CardTitle>
-							<CardDescription>Only title is required.</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<form
-								action={createTaskAction}
-								className='space-y-4'>
-								<div className='space-y-1.5'>
-									<label
-										htmlFor='title'
-										className='text-sm font-medium'>
-										Title <span className='text-destructive'>*</span>
-									</label>
-									<Input
-										id='title'
-										name='title'
-										required
-										placeholder='Add task title'
-									/>
-								</div>
-
-								<div className='space-y-1.5'>
-									<label
-										htmlFor='note'
-										className='text-sm font-medium'>
-										Note (optional)
-									</label>
-									<Textarea
-										id='note'
-										name='note'
-										placeholder='Short markdown-friendly note'
-										className='min-h-24'
-									/>
-								</div>
-
-								<div className='space-y-1.5'>
-									<label
-										htmlFor='firstLink'
-										className='text-sm font-medium'>
-										First link (optional)
-									</label>
-									<Input
-										id='firstLink'
-										name='firstLink'
-										type='url'
-										placeholder='https://github.com/...'
-									/>
-								</div>
-
-								<div className='space-y-1.5'>
-									<label
-										htmlFor='tags'
-										className='text-sm font-medium'>
-										First tags (optional)
-									</label>
-									<Input
-										id='tags'
-										name='tags'
-										placeholder='bug, frontend, review'
-									/>
-								</div>
-
-								<div className='space-y-1.5'>
-									<label
-										htmlFor='people'
-										className='text-sm font-medium'>
-										First person references (optional)
-									</label>
-									<Input
-										id='people'
-										name='people'
-										placeholder='@anna, @max'
-									/>
-								</div>
-
-								<label
-									className='flex items-center gap-2 text-sm'
-									htmlFor='startTrackingNow'>
-									<Checkbox
-										id='startTrackingNow'
-										name='startTrackingNow'
-									/>
-									Start time tracking now
-								</label>
-
-								<Button
-									type='submit'
-									className='w-full'>
-									Create task
-								</Button>
-							</form>
-						</CardContent>
-					</Card>
-				</aside>
+				<section
+					className='lg:sticky lg:top-8 lg:self-start'
+					aria-label='Task list'>
+					<TaskList
+						openQuickAddHref={openQuickAddHref}
+						selectedTaskId={selectedTask?.id ?? null}
+						startTrackingAction={startTrackingAction}
+						stopTrackingAction={stopTrackingAction}
+						taskLinkParams={taskListParams}
+						tasks={tasks}
+					/>
+				</section>
 			</main>
+
+			<UrlDialog
+				open={quickAddParam === '1'}
+				closeHref={closeHref}
+				contentClassName='max-h-[calc(100vh-4rem)] gap-0 overflow-hidden p-0 sm:max-w-xl'
+				contentId='quick-add'>
+				<QuickAddDialogContent
+					closeHref={closeHref}
+					createTaskAction={createTaskAction}
+				/>
+			</UrlDialog>
+
+			{selectedTask ?
+				<UrlDialog
+					open={true}
+					closeHref={closeHref}
+					contentClassName='max-h-[calc(100vh-4rem)] gap-0 overflow-hidden p-0 sm:max-w-3xl'
+					contentId='task-detail'>
+					<TaskDetailDialogContent
+						closeHref={closeHref}
+						detailReturnTo={selectedTaskHref}
+						selectedTask={selectedTask}
+						statusOptions={STATUS_OPTIONS}
+						updateTaskDetailAction={updateTaskDetailAction}
+					/>
+				</UrlDialog>
+			:	null}
 		</div>
 	);
 }
