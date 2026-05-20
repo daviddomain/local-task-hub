@@ -68,6 +68,21 @@ If a change feels architectural or broad, stop and reduce scope before editing.
 - Add comments only where the code would otherwise be non-obvious.
 - Do not modify secrets or environment files unless explicitly requested.
 
+## Branch and PR Workflow
+
+- Create one branch per issue.
+- Use predictable branch names such as:
+  - `feat/<issue-number>-short-slug`
+  - `fix/<issue-number>-short-slug`
+  - `chore/<issue-number>-short-slug`
+- Open a draft PR early for implementation tasks when useful.
+- Keep PR descriptions concise and include:
+  - scope
+  - files changed
+  - validation performed
+  - follow-up items if any
+- Link PRs to their GitHub issue with `Closes #<issue-number>` where appropriate.
+
 ## Validation Commands
 
 For code changes:
@@ -109,4 +124,3 @@ Final reports should include:
 - validation commands run and their exact results
 - any tests intentionally not run, with the reason
 - blockers, risks, or follow-up items if present
-
