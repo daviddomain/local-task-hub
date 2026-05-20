@@ -1,42 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Local Task Hub
 
-## Local MySQL (Phase 1)
+Local Task Hub is a local-first, dockerized, single-user app for daily development work. It helps one technical user capture tasks, notes, links, tags, people references, and time sessions without cloud dependencies.
 
-For local Docker MySQL setup, health checks, persistence behavior, and safe reset steps, see:
+Phase 1 focuses on quick task capture, task detail editing, lightweight time tracking, search and filtering, source/link visibility, and simple export.
 
-- [docs/local-mysql.md](docs/local-mysql.md)
+## Phase 1 Boundaries
 
-## Getting Started
+Phase 1 intentionally does not include auth or login, multi-user support, cloud sync, SaaS or subscription logic, third-party API integrations, or an ORM.
 
-First, run the development server:
+## Tech Stack
+
+- Next.js App Router
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- shadcn/ui
+- MySQL via Docker Compose
+- `mysql2` / `mysql2/promise`
+- Playwright
+
+## Local Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the local MySQL database:
+
+```bash
+docker compose up -d db
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the app at:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database Notes
 
-## Learn More
+MySQL runs through Docker Compose and stores data in the named Docker volume declared in `docker-compose.yml`, so local data survives container restarts and `docker compose down`.
 
-To learn more about Next.js, take a look at the following resources:
+For health checks, persistence details, and safe reset steps, see [docs/local-mysql.md](docs/local-mysql.md).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Validation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Canonical local checks:
 
-## Deploy on Vercel
+```bash
+npm run lint
+npm run build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Playwright is configured for meaningful interactive flows under `e2e/`. Use focused runs when validating a change:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx playwright test --project=chromium
+npx playwright test e2e/<spec-name>.spec.ts --project=chromium --reporter=line
+```
+
+CI currently runs the Chromium Playwright project against a MySQL service.
+
+## Project Docs
+
+- [MVP.md](MVP.md) is the product source of truth for Phase 1.
+- [AGENTS.md](AGENTS.md) contains Codex and project-agent guidance.
+- [docs/local-mysql.md](docs/local-mysql.md) documents the local MySQL setup.
+
+## Exports And Local Data
+
+Phase 1 includes simple local export capabilities: a single task can be exported as Markdown, and open or active tasks can be exported as JSON.
+
+Core app data is local and persisted in MySQL through the Docker volume.
