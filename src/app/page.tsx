@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { Download, Play, Plus, Search, Square } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 
 import {
 	createTask,
@@ -11,8 +11,6 @@ import {
 	listTodayWorkedSummary,
 	recordTaskOpened,
 	updateTaskDetail,
-	type Task,
-	type TodayWorkedSummaryItem,
 	type TaskListFilters,
 	type TaskSourceType,
 	type TaskTimeRelationFilter
@@ -22,8 +20,12 @@ import {
 	startTaskTimeTracking,
 	stopTaskTimeTracking
 } from '@/lib/server/time-tracking';
+import { RecentlyOpenedTasks } from '@/components/recently-opened-tasks';
+import { TaskFilters } from '@/components/task-filters';
+import { TaskList } from '@/components/task-list';
 import { TaskSearchInput } from '@/components/task-search-input';
-import { Badge } from '@/components/ui/badge';
+import { SOURCE_LABELS } from '@/components/task-display-helpers';
+import { TodayWorkedSummary } from '@/components/today-worked-summary';
 import { Button } from '@/components/ui/button';
 import {
 	Card,
@@ -35,23 +37,13 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import {
 	Empty,
-	EmptyContent,
 	EmptyDescription,
 	EmptyHeader,
-	EmptyMedia,
 	EmptyTitle
 } from '@/components/ui/empty';
 import { Input } from '@/components/ui/input';
 import { SelectFormField } from '@/components/select-form-field';
 import { Textarea } from '@/components/ui/textarea';
-
-const SOURCE_LABELS: Record<TaskSourceType, string> = {
-	jira: 'Jira',
-	gitlab: 'GitLab',
-	github: 'GitHub',
-	confluence: 'Confluence',
-	other: 'Other'
-};
 
 const STATUS_OPTIONS = [
 	'open',
@@ -243,59 +235,6 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
 	redirect(`/?taskId=${taskId}#task-detail`);
 }
 
-function truncateNote(note: string, maxLength = 140) {
-	if (note.length <= maxLength) {
-		return note;
-	}
-
-	return `${note.slice(0, maxLength).trimEnd()}...`;
-}
-
-function formatDuration(totalSeconds: number) {
-	if (totalSeconds <= 0) {
-		return '0m';
-	}
-
-	const hours = Math.floor(totalSeconds / 3600);
-	const minutes = Math.floor((totalSeconds % 3600) / 60);
-
-	if (hours > 0) {
-		return `${hours}h ${minutes}m`;
-	}
-
-	return `${minutes}m`;
-}
-
-function getSourceBadgeLabel(task: Task) {
-	if (!task.firstLink) {
-		return 'Local';
-	}
-
-	if (!task.firstLinkSourceType) {
-		return SOURCE_LABELS.other;
-	}
-
-	return SOURCE_LABELS[task.firstLinkSourceType];
-}
-
-function getTaskTodayLabel(task: Task) {
-	return task.todayTrackedSeconds > 0 ?
-			formatDuration(task.todayTrackedSeconds)
-		:	'0m';
-}
-
-function getTaskTotalLabel(task: Task) {
-	return task.totalTrackedSeconds > 0 ?
-			formatDuration(task.totalTrackedSeconds)
-		:	'0m';
-}
-
-function getTodayWorkedSummarySessionLabel(item: TodayWorkedSummaryItem) {
-	return item.sessionCount === 1 ?
-			'1 session'
-		:	`${item.sessionCount} sessions`;
-}
-
 function formatTimestamp(value: Date) {
 	return new Intl.DateTimeFormat(undefined, {
 		dateStyle: 'medium',
@@ -389,14 +328,6 @@ export default async function Home({
 	const recentlyOpenedTasks = await listRecentlyOpenedTasks();
 	const todayTotalTrackedSeconds = await getTodayTotalTrackedSeconds();
 	const todayWorkedSummary = await listTodayWorkedSummary();
-	const visibleTodayWorkedSummary = todayWorkedSummary.slice(
-		0,
-		TODAY_WORKED_SUMMARY_VISIBLE_LIMIT
-	);
-	const hiddenTodayWorkedSummaryCount = Math.max(
-		0,
-		todayWorkedSummary.length - visibleTodayWorkedSummary.length
-	);
 
 	const peopleOptions = [
 		...new Set(allTasks.flatMap((task) => task.people))
@@ -514,463 +445,34 @@ export default async function Home({
 								</div>
 							</div>
 
-							<div className='space-y-3'>
-								<p className='text-sm text-muted-foreground'>
-									Today total tracked:{' '}
-									<span className='font-medium text-foreground'>
-										{formatDuration(todayTotalTrackedSeconds)}
-									</span>
-								</p>
+							<TodayWorkedSummary
+								todayTotalTrackedSeconds={todayTotalTrackedSeconds}
+								todayWorkedSummary={todayWorkedSummary}
+								visibleLimit={TODAY_WORKED_SUMMARY_VISIBLE_LIMIT}
+							/>
 
-								<div
-									className='rounded-lg border border-border bg-muted/20 p-3'
-									aria-label='Today worked summary'
-									data-testid='today-worked-summary'>
-									<div className='flex items-center justify-between gap-3'>
-										<div>
-											<p className='text-sm font-medium text-foreground'>
-												Today worked summary
-											</p>
-											<p className='text-xs text-muted-foreground'>
-												Current day only, grouped by task.
-											</p>
-										</div>
-										<p className='text-sm font-medium text-foreground'>
-											{formatDuration(todayTotalTrackedSeconds)}
-										</p>
-									</div>
-
-									{todayWorkedSummary.length === 0 ?
-										<p className='mt-3 text-sm text-muted-foreground'>
-											No tracked time recorded for today yet.
-										</p>
-									:	<>
-											<ul className='mt-3 space-y-2'>
-												{visibleTodayWorkedSummary.map((item) => (
-													<li
-														key={item.taskId}
-														className='flex items-center justify-between gap-3 rounded-md border border-border/70 bg-background/60 px-3 py-2'>
-														<div className='min-w-0'>
-															<p className='truncate text-sm font-medium text-foreground'>
-																{item.title}
-															</p>
-															<p className='text-xs text-muted-foreground'>
-																{getTodayWorkedSummarySessionLabel(item)}
-															</p>
-														</div>
-														<p className='shrink-0 text-sm font-medium text-foreground'>
-															{formatDuration(item.trackedSeconds)}
-														</p>
-													</li>
-												))}
-											</ul>
-
-											{hiddenTodayWorkedSummaryCount > 0 ?
-												<p className='mt-2 text-xs text-muted-foreground'>
-													{hiddenTodayWorkedSummaryCount === 1 ?
-														'+ 1 more task tracked today'
-													:	`+ ${hiddenTodayWorkedSummaryCount} more tasks tracked today`
-													}
-												</p>
-											:	null}
-										</>
-									}
-								</div>
-							</div>
-
-							<fieldset
-								className='space-y-3'
-								aria-label='Task filters'>
-								<legend className='text-sm font-medium'>Filters</legend>
-								<form
-									className='grid gap-3 sm:grid-cols-2 xl:grid-cols-3'
-									method='get'>
-									{filters.query ?
-										<input
-											type='hidden'
-											name='q'
-											value={filters.query}
-										/>
-									:	null}
-
-									<div className='space-y-1'>
-										<label
-											htmlFor='status'
-											className='text-xs text-muted-foreground'>
-											Status
-										</label>
-										<SelectFormField
-											id='status'
-											name='status'
-											value={filters.status ?? ''}
-											placeholder='All statuses'
-											options={[
-												{ value: '', label: 'All statuses' },
-												...STATUS_OPTIONS.map((statusOption) => ({
-													value: statusOption,
-													label: statusOption
-												}))
-											]}
-										/>
-									</div>
-
-									<div className='space-y-1'>
-										<label
-											htmlFor='later'
-											className='text-xs text-muted-foreground'>
-											Later
-										</label>
-										<SelectFormField
-											id='later'
-											name='later'
-											value={filters.later ?? ''}
-											placeholder='Any'
-											options={[
-												{ value: '', label: 'Any' },
-												{ value: 'only', label: 'Later only' },
-												{ value: 'exclude', label: 'Exclude later' }
-											]}
-										/>
-									</div>
-
-									<div className='space-y-1'>
-										<label
-											htmlFor='person'
-											className='text-xs text-muted-foreground'>
-											Person
-										</label>
-										<SelectFormField
-											id='person'
-											name='person'
-											value={filters.person ?? ''}
-											placeholder='Any person'
-											options={[
-												{ value: '', label: 'Any person' },
-												...peopleOptions.map((person) => ({
-													value: person,
-													label: person
-												}))
-											]}
-										/>
-									</div>
-
-									<div className='space-y-1'>
-										<label
-											htmlFor='tag'
-											className='text-xs text-muted-foreground'>
-											Tag
-										</label>
-										<SelectFormField
-											id='tag'
-											name='tag'
-											value={filters.tag ?? ''}
-											placeholder='Any tag'
-											options={[
-												{ value: '', label: 'Any tag' },
-												...tagOptions.map((tag) => ({
-													value: tag,
-													label: tag
-												}))
-											]}
-										/>
-									</div>
-
-									<div className='space-y-1'>
-										<label
-											htmlFor='time'
-											className='text-xs text-muted-foreground'>
-											Time relation
-										</label>
-										<SelectFormField
-											id='time'
-											name='time'
-											value={filters.timeRelation ?? ''}
-											placeholder='Any time'
-											options={[
-												{ value: '', label: 'Any time' },
-												{ value: 'today', label: 'Today' },
-												{ value: 'this_week', label: 'This week' },
-												{ value: 'no_time', label: 'No time' },
-												{ value: 'recently_updated', label: 'Recently updated' }
-											]}
-										/>
-									</div>
-
-									<div className='space-y-1'>
-										<label
-											htmlFor='source'
-											className='text-xs text-muted-foreground'>
-											Source
-										</label>
-										<SelectFormField
-											id='source'
-											name='source'
-											value={filters.source ?? ''}
-											placeholder='Any source'
-											options={[
-												{ value: '', label: 'Any source' },
-												{ value: 'jira', label: 'Jira' },
-												{ value: 'gitlab', label: 'GitLab' },
-												{ value: 'github', label: 'GitHub' },
-												{ value: 'confluence', label: 'Confluence' },
-												{ value: 'other', label: 'Other' }
-											]}
-										/>
-									</div>
-
-									<div className='sm:col-span-2 xl:col-span-3 flex items-center gap-2'>
-										<Button
-											type='submit'
-											variant='secondary'>
-											Apply filters
-										</Button>
-										<Button
-											asChild
-											type='button'
-											variant='ghost'>
-											<Link href='/'>Clear</Link>
-										</Button>
-									</div>
-								</form>
-
-								{activeFilterLabels.length > 0 ?
-									<div
-										className='flex flex-wrap gap-2'
-										aria-label='Active filters'>
-										{activeFilterLabels.map((label) => (
-											<Badge
-												key={label}
-												variant='outline'
-												className='px-3 py-1'>
-												{label}
-											</Badge>
-										))}
-									</div>
-								:	null}
-							</fieldset>
+							<TaskFilters
+								activeFilterLabels={activeFilterLabels}
+								filters={filters}
+								peopleOptions={peopleOptions}
+								statusOptions={STATUS_OPTIONS}
+								tagOptions={tagOptions}
+							/>
 						</CardContent>
 					</Card>
 
-					<Card aria-label='Recently opened tasks'>
-						<CardHeader className='border-b border-border'>
-							<CardTitle className='text-base tracking-tight'>
-								Recently opened
-							</CardTitle>
-							<CardDescription>
-								Latest task detail views (up to 5).
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{recentlyOpenedTasks.length === 0 ?
-								<p className='text-sm text-muted-foreground'>
-									No recently opened tasks yet.
-								</p>
-							:	<ul className='space-y-2'>
-									{recentlyOpenedTasks.map((task) => {
-										const taskHrefParams = new URLSearchParams(
-											taskLinkParams.toString()
-										);
-										taskHrefParams.set('taskId', String(task.id));
+					<RecentlyOpenedTasks
+						recentlyOpenedTasks={recentlyOpenedTasks}
+						taskLinkParams={taskLinkParams.toString()}
+					/>
 
-										return (
-											<li
-												key={`recent-${task.id}`}
-												className='flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2'>
-												<Link
-													href={`/?${taskHrefParams.toString()}#task-detail`}
-													className='truncate text-sm underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
-													{task.title}
-												</Link>
-												<div className='flex shrink-0 items-center gap-2'>
-													{task.later ?
-														<Badge
-															variant='outline'
-															className='text-[10px]'>
-															later
-														</Badge>
-													:	null}
-													<Badge
-														variant='outline'
-														className='text-[10px]'>
-														{task.status}
-													</Badge>
-												</div>
-											</li>
-										);
-									})}
-								</ul>
-							}
-						</CardContent>
-					</Card>
-
-					<Card className='min-h-[420px]'>
-						<CardHeader className='border-b border-border'>
-							<CardTitle className='text-base tracking-tight'>
-								Task list
-							</CardTitle>
-							<CardDescription>
-								Showing {tasks.length} task{tasks.length === 1 ? '' : 's'}{' '}
-								matching current search and filters.
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{tasks.length === 0 ?
-								<Empty className='border border-dashed border-border bg-muted/20'>
-									<EmptyHeader>
-										<EmptyMedia variant='icon'>
-											<Search
-												className='size-5'
-												aria-hidden='true'
-											/>
-										</EmptyMedia>
-										<EmptyTitle>No matching tasks</EmptyTitle>
-										<EmptyDescription>
-											Adjust search or filters, or create a new task from Quick
-											Add.
-										</EmptyDescription>
-									</EmptyHeader>
-									<EmptyContent>
-										<Button
-											asChild
-											type='button'
-											variant='secondary'>
-											<a href='#quick-add'>
-												<Plus
-													aria-hidden='true'
-													className='size-4'
-												/>
-												Open quick add
-											</a>
-										</Button>
-									</EmptyContent>
-								</Empty>
-							:	<ul
-									className='space-y-3'
-									aria-label='Main task list'
-									data-testid='main-task-list'>
-									{tasks.map((task) => {
-										const isSelected = selectedTask?.id === task.id;
-										const taskHrefParams = new URLSearchParams(
-											taskLinkParams.toString()
-										);
-										taskHrefParams.set('taskId', String(task.id));
-										const taskHref = `/?${taskHrefParams.toString()}#task-detail`;
-
-										return (
-											<li
-												key={task.id}
-												className='rounded-xl border border-border p-3'>
-												<div className='flex items-start justify-between gap-3'>
-													<p className='font-medium'>
-														<Link
-															href={taskHref}
-															className='underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
-															{task.title}
-														</Link>
-													</p>
-													<div className='flex flex-wrap items-center justify-end gap-2'>
-														{isSelected ?
-															<Badge
-																variant='secondary'
-																className='text-xs'>
-																selected
-															</Badge>
-														:	null}
-														<Badge
-															variant='outline'
-															className='text-xs'>
-															{task.status}
-														</Badge>
-														<Badge
-															variant='secondary'
-															className='text-xs'>
-															{getSourceBadgeLabel(task)}
-														</Badge>
-													</div>
-												</div>
-
-												<div className='mt-2 flex flex-wrap gap-2'>
-													{task.later ?
-														<Badge
-															variant='outline'
-															className='text-xs'>
-															later
-														</Badge>
-													:	null}
-
-													{task.tags.map((tag) => (
-														<Badge
-															key={`${task.id}-tag-${tag}`}
-															variant='outline'
-															className='text-xs'>
-															#{tag}
-														</Badge>
-													))}
-
-													{task.people.map((person) => (
-														<Badge
-															key={`${task.id}-person-${person}`}
-															variant='outline'
-															className='text-xs'>
-															{person}
-														</Badge>
-													))}
-												</div>
-
-												{task.note ?
-													<p className='mt-2 text-sm text-muted-foreground'>
-														{truncateNote(task.note)}
-													</p>
-												:	null}
-
-												<div className='mt-2 space-y-2'>
-													<p className='text-xs text-muted-foreground'>
-														{task.timerStartedAt ? 'Running now' : 'Stopped'} �
-														Today: {getTaskTodayLabel(task)} � Total:{' '}
-														{getTaskTotalLabel(task)}
-													</p>
-													<form
-														action={
-															task.timerStartedAt ? stopTrackingAction : (
-																startTrackingAction
-															)
-														}>
-														<input
-															type='hidden'
-															name='taskId'
-															value={task.id}
-														/>
-														{task.timerStartedAt ?
-															<Button
-																type='submit'
-																size='sm'
-																variant='secondary'>
-																<Square
-																	aria-hidden='true'
-																	className='size-3.5'
-																/>
-																Stop tracking
-															</Button>
-														:	<Button
-																type='submit'
-																size='sm'
-																variant='outline'>
-																<Play
-																	aria-hidden='true'
-																	className='size-3.5'
-																/>
-																Start tracking
-															</Button>
-														}
-													</form>
-												</div>
-											</li>
-										);
-									})}
-								</ul>
-							}
-						</CardContent>
-					</Card>
+					<TaskList
+						selectedTaskId={selectedTask?.id ?? null}
+						startTrackingAction={startTrackingAction}
+						stopTrackingAction={stopTrackingAction}
+						taskLinkParams={taskLinkParams.toString()}
+						tasks={tasks}
+					/>
 				</section>
 
 				<aside
