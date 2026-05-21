@@ -163,8 +163,8 @@ export function TaskList({
 
 									<div className='mt-2 space-y-2'>
 										<p className='text-xs text-muted-foreground'>
-											{task.timerStartedAt ? 'Running now' : 'Stopped'} �
-											Today: {getTaskTodayLabel(task)} � Total:{' '}
+											{task.timerStartedAt ? 'Running now' : 'Stopped'} {' · '}
+											Today: {getTaskTodayLabel(task)} {' · '} Total:{' '}
 											{getTaskTotalLabel(task)}
 										</p>
 										<form
