@@ -4,16 +4,20 @@ async function showOnlyTask(page: import('@playwright/test').Page, title: string
   await page.goto(`/?q=${encodeURIComponent(title)}`, { waitUntil: 'domcontentloaded' })
 }
 
+async function openTaskDetail(page: import('@playwright/test').Page, title: string) {
+  await page.getByTestId('main-task-list').getByRole('link', { name: title }).click()
+  await expect(page.getByRole('dialog', { name: 'Task detail' })).toBeVisible()
+  await expect(page.locator('#detailTitle')).toHaveValue(title)
+}
+
 test('task detail renders attached links as clickable items and keeps one-per-line persistence', async ({ page }) => {
   const unique = Date.now().toString()
   const title = `Issue34 Links ${unique}`
 
   await page.goto('/')
+  await showOnlyTask(page, title)
 
-  await Promise.all([
-    page.waitForURL(/quickAdd=1/, { waitUntil: 'domcontentloaded' }),
-    page.getByRole('link', { name: 'Create task' }).click(),
-  ])
+  await page.getByRole('link', { name: 'Create task' }).click()
   await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
   const quickAdd = page.locator('#quick-add')
   await quickAdd.getByLabel('Title *').fill(title)
@@ -21,12 +25,10 @@ test('task detail renders attached links as clickable items and keeps one-per-li
     page.waitForResponse((response) => response.request().method() === 'POST'),
     quickAdd.getByLabel('Title *').press('Enter'),
   ])
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toHaveCount(0)
 
   await showOnlyTask(page, title)
-  await Promise.all([
-    page.waitForURL(/taskId=/, { waitUntil: 'domcontentloaded' }),
-    page.getByTestId('main-task-list').getByRole('link', { name: title }).click(),
-  ])
+  await openTaskDetail(page, title)
 
   await expect(page.getByRole('dialog', { name: 'Task detail' })).toBeVisible()
   await expect(page.getByLabel('Attached links')).toHaveCount(0)
@@ -64,10 +66,7 @@ test('task detail renders attached links as clickable items and keeps one-per-li
   await popup.close()
 
   await showOnlyTask(page, title)
-  await Promise.all([
-    page.waitForURL(/taskId=/, { waitUntil: 'domcontentloaded' }),
-    page.getByTestId('main-task-list').getByRole('link', { name: title }).click(),
-  ])
+  await openTaskDetail(page, title)
 
   await expect(page.locator('#detailLinks')).toHaveValue(
     'https://github.com/vercel/next.js\nhttps://gitlab.com/gitlab-org/gitlab',
@@ -80,17 +79,16 @@ test('task detail supports structured time session editing and explicit removal'
   const title = `Issue35 Sessions ${unique}`
 
   await page.goto('/')
+  await showOnlyTask(page, title)
 
-  await Promise.all([
-    page.waitForURL(/quickAdd=1/, { waitUntil: 'domcontentloaded' }),
-    page.getByRole('link', { name: 'Create task' }).click(),
-  ])
+  await page.getByRole('link', { name: 'Create task' }).click()
   await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
   await page.getByLabel('Title *').fill(title)
   await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST'),
     page.getByRole('button', { name: 'Create task' }).click(),
   ])
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toHaveCount(0)
 
   await showOnlyTask(page, title)
   const card = page.getByTestId('main-task-list').locator('li', { hasText: title })
@@ -107,10 +105,7 @@ test('task detail supports structured time session editing and explicit removal'
   ])
 
   await showOnlyTask(page, title)
-  await Promise.all([
-    page.waitForURL(/taskId=/, { waitUntil: 'domcontentloaded' }),
-    page.getByTestId('main-task-list').getByRole('link', { name: title }).click(),
-  ])
+  await openTaskDetail(page, title)
 
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
 
@@ -129,10 +124,7 @@ test('task detail supports structured time session editing and explicit removal'
   ])
 
   await showOnlyTask(page, title)
-  await Promise.all([
-    page.waitForURL(/taskId=/, { waitUntil: 'domcontentloaded' }),
-    page.getByTestId('main-task-list').getByRole('link', { name: title }).click(),
-  ])
+  await openTaskDetail(page, title)
 
   await expect(page.locator('#detailTimeSessionStartedAt-0')).toHaveValue(startedAt)
   await expect(page.locator('#detailTimeSessionEndedAt-0')).toHaveValue(endedAt)
@@ -148,10 +140,7 @@ test('task detail supports structured time session editing and explicit removal'
   ])
 
   await showOnlyTask(page, title)
-  await Promise.all([
-    page.waitForURL(/taskId=/, { waitUntil: 'domcontentloaded' }),
-    page.getByTestId('main-task-list').getByRole('link', { name: title }).click(),
-  ])
+  await openTaskDetail(page, title)
 
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(0)
   await expect(page.getByText('No time sessions yet.')).toBeVisible()

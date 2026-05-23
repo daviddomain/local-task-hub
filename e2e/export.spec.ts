@@ -11,17 +11,22 @@ async function submitQuickAdd(page: import('@playwright/test').Page) {
     page.waitForResponse((response) => response.request().method() === 'POST'),
     createButton.click(),
   ])
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toHaveCount(0)
 }
 
 async function openQuickAdd(page: import('@playwright/test').Page) {
-  await Promise.all([
-    page.waitForURL(/quickAdd=1/, { waitUntil: 'domcontentloaded' }),
-    page.getByRole('link', { name: 'Create task' }).click(),
-  ])
-  await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
+  await page.getByRole('link', { name: 'Create task' }).click()
+  const quickAdd = page.getByRole('dialog', { name: 'Quick add' })
+  await expect(quickAdd).toBeVisible()
+  await expect(quickAdd.getByLabel('Title *')).toBeEditable()
+}
+
+async function showOnlyTask(page: import('@playwright/test').Page, title: string) {
+  await page.goto(`/?q=${encodeURIComponent(title)}`, { waitUntil: 'domcontentloaded' })
 }
 
 async function openTaskDetail(page: import('@playwright/test').Page, title: string) {
+  await showOnlyTask(page, title)
   const taskCard = page.getByTestId('main-task-list').locator('li', { hasText: title })
   await expect(taskCard).toBeVisible()
 
@@ -31,7 +36,7 @@ async function openTaskDetail(page: import('@playwright/test').Page, title: stri
   expect(taskHref).toBeTruthy()
   expect(taskHref).toContain('taskId=')
 
-  await page.goto(taskHref!)
+  await page.goto(taskHref!, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('#detailTitle')).toHaveValue(title)
 }
 
@@ -41,6 +46,7 @@ test('exports selected task as markdown and open tasks as JSON', async ({ page }
   const doneTitle = `Issue12 Done ${unique}`
 
   await page.goto('/')
+  await showOnlyTask(page, unique)
 
   await openQuickAdd(page)
   await page.getByLabel('Title *').fill(openTitle)
@@ -50,20 +56,22 @@ test('exports selected task as markdown and open tasks as JSON', async ({ page }
   await page.getByLabel('First person references (optional)').fill(`@person-${unique}`)
   await submitQuickAdd(page)
 
+  await showOnlyTask(page, openTitle)
   await expect(page.getByTestId('main-task-list').locator('li', { hasText: openTitle })).toBeVisible()
 
   await openQuickAdd(page)
   await page.getByLabel('Title *').fill(doneTitle)
   await submitQuickAdd(page)
+  await showOnlyTask(page, doneTitle)
   await expect(page.getByTestId('main-task-list').locator('li', { hasText: doneTitle })).toBeVisible()
 
   await openTaskDetail(page, doneTitle)
 
   const markDoneButton = page.getByRole('button', { name: 'Mark done' })
   await expect(markDoneButton).toBeVisible()
-  await markDoneButton.evaluate((element) => {
-    ;(element as HTMLButtonElement).click()
-  })
+  await markDoneButton.click()
+  await expect(page.getByRole('button', { name: 'Reopen task' })).toBeVisible()
+  await showOnlyTask(page, doneTitle)
   await expect(page.getByTestId('main-task-list').locator('li', { hasText: doneTitle })).toContainText('done')
 
   await openTaskDetail(page, openTitle)
@@ -87,7 +95,8 @@ test('exports selected task as markdown and open tasks as JSON', async ({ page }
   expect(markdownContent).toContain(`@person-${unique}`)
   expect(markdownContent).toContain('## Time summary')
 
-  await page.goto('/')
+  await page.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('dialog', { name: 'Task detail' })).toHaveCount(0)
 
   const openExportLink = page.getByRole('link', { name: 'Export open JSON' })
   await expect(openExportLink).toBeVisible()

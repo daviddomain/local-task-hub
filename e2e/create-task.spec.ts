@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test'
 
 async function openQuickAdd(page: import('@playwright/test').Page) {
-  await Promise.all([
-    page.waitForURL(/quickAdd=1/, { waitUntil: 'domcontentloaded' }),
-    page.getByRole('link', { name: 'Create task' }).click(),
-  ])
-  await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
+  await page.getByRole('link', { name: 'Create task' }).click()
+  const quickAdd = page.getByRole('dialog', { name: 'Quick add' })
+  await expect(quickAdd).toBeVisible()
+  await expect(quickAdd.getByLabel('Title *')).toBeEditable()
 }
 
 async function submitQuickAdd(page: import('@playwright/test').Page) {
@@ -13,10 +12,17 @@ async function submitQuickAdd(page: import('@playwright/test').Page) {
     page.waitForResponse((response) => response.request().method() === 'POST'),
     page.getByRole('button', { name: 'Create task' }).click(),
   ])
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toHaveCount(0)
 }
 
 async function showOnlyTask(page: import('@playwright/test').Page, title: string) {
   await page.goto(`/?q=${encodeURIComponent(title)}`, { waitUntil: 'domcontentloaded' })
+}
+
+async function openTaskDetail(page: import('@playwright/test').Page, title: string) {
+  await page.getByTestId('main-task-list').getByRole('link', { name: title }).click()
+  await expect(page.getByRole('dialog', { name: 'Task detail' })).toBeVisible()
+  await expect(page.locator('#detailTitle')).toHaveValue(title)
 }
 
 test('create task with title only persists and renders in list', async ({ page }) => {
@@ -24,6 +30,7 @@ test('create task with title only persists and renders in list', async ({ page }
   const title = `Issue2 Title Only ${unique}`
 
   await page.goto('http://localhost:3000/')
+  await showOnlyTask(page, title)
 
   await openQuickAdd(page)
   await page.getByLabel('Title *').fill(title)
@@ -47,6 +54,7 @@ test('create task with optional fields and tracking persists after reload', asyn
   const title = `Issue2 Populated ${unique}`
 
   await page.goto('http://localhost:3000/')
+  await showOnlyTask(page, title)
 
   await openQuickAdd(page)
   await page.getByLabel('Title *').fill(title)
@@ -82,19 +90,14 @@ test('open task detail, edit task, and persist detail changes after reload', asy
   const updatedTitle = `${initialTitle} Updated`
 
   await page.goto('/')
+  await showOnlyTask(page, initialTitle)
 
   await openQuickAdd(page)
   await page.getByLabel('Title *').fill(initialTitle)
   await submitQuickAdd(page)
 
   await showOnlyTask(page, initialTitle)
-  await Promise.all([
-    page.waitForURL(/taskId=/, { waitUntil: 'domcontentloaded' }),
-    page.getByTestId('main-task-list').getByRole('link', { name: initialTitle }).click(),
-  ])
-
-  await expect(page.getByRole('dialog', { name: 'Task detail' })).toBeVisible()
-  await expect(page.locator('#detailTitle')).toHaveValue(initialTitle)
+  await openTaskDetail(page, initialTitle)
 
   await page.locator('#detailTitle').fill(updatedTitle)
   const statusTrigger = page.locator("#detailStatus")
@@ -117,10 +120,7 @@ test('open task detail, edit task, and persist detail changes after reload', asy
   await expect(updatedCard).toContainText('Updated detail note')
 
   await showOnlyTask(page, updatedTitle)
-  await Promise.all([
-    page.waitForURL(/taskId=/, { waitUntil: 'domcontentloaded' }),
-    page.getByTestId('main-task-list').getByRole('link', { name: updatedTitle }).click(),
-  ])
+  await openTaskDetail(page, updatedTitle)
 
   await expect(page.locator('#detailTitle')).toHaveValue(updatedTitle)
   await expect(page.locator("#detailStatus")).toContainText("blocked")
@@ -132,16 +132,14 @@ test('closing task detail dialog removes taskId from the URL', async ({ page }) 
   const title = `Issue50 Close Detail ${unique}`
 
   await page.goto('/')
+  await showOnlyTask(page, title)
 
   await openQuickAdd(page)
   await page.getByLabel('Title *').fill(title)
   await submitQuickAdd(page)
 
   await showOnlyTask(page, title)
-  await Promise.all([
-    page.waitForURL(/taskId=/, { waitUntil: 'domcontentloaded' }),
-    page.getByTestId('main-task-list').getByRole('link', { name: title }).click(),
-  ])
+  await openTaskDetail(page, title)
   await expect(page).toHaveURL(/taskId=/)
   await expect(page.getByRole('dialog', { name: 'Task detail' })).toBeVisible()
 
