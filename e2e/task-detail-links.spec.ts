@@ -109,12 +109,11 @@ test('task detail supports structured time session editing and explicit removal'
 
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
 
-  const startedAt = '2026-01-02T03:04:05.000Z'
-  const endedAt = '2026-01-02T04:04:05.000Z'
+  const startedAt = '2026-01-02T03:04:05'
+  const endedAt = '2026-01-02T04:04:05'
 
   await page.locator('#detailTimeSessionStartedAt-0').fill(startedAt)
   await page.locator('#detailTimeSessionEndedAt-0').fill(endedAt)
-  await page.locator('#detailTimeSessionDuration-0').fill('3600')
 
   await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST'),
@@ -128,7 +127,7 @@ test('task detail supports structured time session editing and explicit removal'
 
   await expect(page.locator('#detailTimeSessionStartedAt-0')).toHaveValue(startedAt)
   await expect(page.locator('#detailTimeSessionEndedAt-0')).toHaveValue(endedAt)
-  await expect(page.locator('#detailTimeSessionDuration-0')).toHaveValue('3600')
+  await expect(page.getByTestId('time-session-duration')).toHaveText('1h 0m')
 
   await page.locator('#detailTimeSessionRemove-0').check()
 

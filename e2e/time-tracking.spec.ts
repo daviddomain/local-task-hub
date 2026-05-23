@@ -5,6 +5,17 @@ function buildUnique(testName: string) {
   return `${testName}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+function formatDateTimeLocalValue(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, "0")
+  const day = String(value.getDate()).padStart(2, "0")
+  const hours = String(value.getHours()).padStart(2, "0")
+  const minutes = String(value.getMinutes()).padStart(2, "0")
+  const seconds = String(value.getSeconds()).padStart(2, "0")
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+}
+
 async function withDbConnection() {
   return mysql.createConnection({
     host: process.env.DB_HOST ?? process.env.MYSQL_HOST ?? "127.0.0.1",
@@ -117,9 +128,9 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
   const startedAtRaw = await page.locator("#detailTimeSessionStartedAt-0").inputValue()
   const startedAt = new Date(startedAtRaw)
   const correctedEndedAt = new Date(startedAt.getTime() + 2 * 60 * 1000)
+  const correctedEndedAtInput = formatDateTimeLocalValue(correctedEndedAt)
 
-  await page.locator("#detailTimeSessionEndedAt-0").fill(correctedEndedAt.toISOString())
-  await page.locator("#detailTimeSessionDuration-0").fill("")
+  await page.locator("#detailTimeSessionEndedAt-0").fill(correctedEndedAtInput)
   await saveTaskDetail(page)
 
   await showOnlyTask(page, title)
@@ -133,7 +144,8 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
 
   await openTaskDetail(page, title)
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
-  await expect(page.locator("#detailTimeSessionEndedAt-0")).toHaveValue(correctedEndedAt.toISOString())
+  await expect(page.locator("#detailTimeSessionEndedAt-0")).toHaveValue(correctedEndedAtInput)
+  await expect(page.getByTestId("time-session-duration")).toHaveText("2m")
 
   await expect(page.getByText("Today total tracked:")).toBeVisible()
 })
@@ -162,7 +174,7 @@ test("double start submission does not create duplicate running sessions", async
   const sessionRows = page.locator("#task-detail [data-testid='time-session-row']")
   await expect(sessionRows).toHaveCount(1)
   await expect(page.locator("#detailTimeSessionEndedAt-0")).toHaveValue("")
-  await expect(page.locator("#detailTimeSessionDuration-0")).toHaveValue("")
+  await expect(page.getByTestId("time-session-duration")).toHaveText("Running")
 })
 
 test("double stop submission does not mutate ended session twice", async ({ page }, testInfo) => {
@@ -195,17 +207,16 @@ test("double stop submission does not mutate ended session twice", async ({ page
 
   const startedAtRaw = await page.locator("#detailTimeSessionStartedAt-0").inputValue()
   const endedAtRaw = await page.locator("#detailTimeSessionEndedAt-0").inputValue()
-  const durationRaw = await page.locator("#detailTimeSessionDuration-0").inputValue()
 
   expect(endedAtRaw).not.toBe("")
-  expect(durationRaw).toMatch(/^\d+$/)
 
   const startedAt = new Date(startedAtRaw)
   const endedAt = new Date(endedAtRaw)
-  const durationSeconds = Number.parseInt(durationRaw, 10)
 
   const expectedSeconds = Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000))
-  expect(durationSeconds).toBe(expectedSeconds)
+  await expect(page.getByTestId("time-session-duration")).toHaveText(
+    expectedSeconds >= 60 ? /\d+m/ : "0m"
+  )
 })
 
 test("today totals include overlap for sessions that started before midnight", async ({ page }, testInfo) => {
@@ -260,9 +271,9 @@ test("editing only endedAt recomputes persisted duration and updates totals", as
   const startedAtRaw = await page.locator("#detailTimeSessionStartedAt-0").inputValue()
   const startedAt = new Date(startedAtRaw)
   const editedEndedAt = new Date(startedAt.getTime() + 10 * 60 * 1000)
+  const editedEndedAtInput = formatDateTimeLocalValue(editedEndedAt)
 
-  await page.locator("#detailTimeSessionEndedAt-0").fill(editedEndedAt.toISOString())
-  await page.locator("#detailTimeSessionDuration-0").fill("1")
+  await page.locator("#detailTimeSessionEndedAt-0").fill(editedEndedAtInput)
   await saveTaskDetail(page)
 
   await showOnlyTask(page, title)

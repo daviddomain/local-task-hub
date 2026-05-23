@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDuration } from '@/components/task-display-helpers';
 
 type UpdateTaskDetailAction = (
 	taskId: number,
@@ -31,6 +32,33 @@ function formatTimestamp(value: Date) {
 		dateStyle: 'medium',
 		timeStyle: 'short'
 	}).format(value);
+}
+
+function formatDateTimeLocalValue(value: Date) {
+	const year = value.getFullYear();
+	const month = String(value.getMonth() + 1).padStart(2, '0');
+	const day = String(value.getDate()).padStart(2, '0');
+	const hours = String(value.getHours()).padStart(2, '0');
+	const minutes = String(value.getMinutes()).padStart(2, '0');
+	const seconds = String(value.getSeconds()).padStart(2, '0');
+
+	return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+}
+
+function getTimeSessionDurationLabel(
+	startedAt: Date,
+	endedAt: Date | null
+) {
+	if (!endedAt) {
+		return 'Running';
+	}
+
+	const derivedSeconds = Math.max(
+		0,
+		Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)
+	);
+
+	return formatDuration(derivedSeconds);
 }
 
 function getLinkDomainHint(url: string) {
@@ -213,7 +241,7 @@ export function TaskDetailDialogContent({
 						<div className='space-y-1.5'>
 							<p className='text-sm font-medium'>Time sessions</p>
 							<p className='text-xs text-muted-foreground'>
-								Edit each session directly using ISO date-time values.
+								Edit start and end times with local date and time fields.
 							</p>
 						</div>
 						<input
@@ -240,7 +268,9 @@ export function TaskDetailDialogContent({
 												<Input
 													id={'detailTimeSessionStartedAt-' + index}
 													name={'detailTimeSessionStartedAt_' + index}
-													defaultValue={session.startedAt.toISOString()}
+													type='datetime-local'
+													step='1'
+													defaultValue={formatDateTimeLocalValue(session.startedAt)}
 													className='font-mono text-xs'
 													required
 												/>
@@ -254,25 +284,28 @@ export function TaskDetailDialogContent({
 												<Input
 													id={'detailTimeSessionEndedAt-' + index}
 													name={'detailTimeSessionEndedAt_' + index}
+													type='datetime-local'
+													step='1'
 													defaultValue={
-														session.endedAt ? session.endedAt.toISOString() : ''
+														session.endedAt ?
+															formatDateTimeLocalValue(session.endedAt)
+														:	''
 													}
 													className='font-mono text-xs'
 												/>
 											</div>
 											<div className='space-y-1'>
-												<label
-													htmlFor={'detailTimeSessionDuration-' + index}
-													className='text-xs font-medium text-muted-foreground'>
-													Duration (seconds)
-												</label>
-												<Input
-													id={'detailTimeSessionDuration-' + index}
-													name={'detailTimeSessionDuration_' + index}
-													defaultValue={session.durationSeconds ?? ''}
-													className='font-mono text-xs'
-													inputMode='numeric'
-												/>
+												<p className='text-xs font-medium text-muted-foreground'>
+													Duration
+												</p>
+												<p
+													className='rounded-md border border-border bg-background px-3 py-2 text-sm'
+													data-testid='time-session-duration'>
+													{getTimeSessionDurationLabel(
+														session.startedAt,
+														session.endedAt
+													)}
+												</p>
 											</div>
 										</div>
 										<div className='mt-2'>

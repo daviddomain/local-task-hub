@@ -136,7 +136,6 @@ function parseTimeSessionsInput(formData: FormData) {
 	const sessions: Array<{
 		startedAt: Date;
 		endedAt: Date | null;
-		durationSeconds: number | null;
 	}> = [];
 
 	for (let index = 0; index < count; index += 1) {
@@ -168,31 +167,9 @@ function parseTimeSessionsInput(formData: FormData) {
 			throw new Error(`Invalid ended_at value in time sessions: ${endedAtRaw}`);
 		}
 
-		const durationRaw = String(
-			formData.get('detailTimeSessionDuration_' + index) ?? ''
-		).trim();
-		const durationSeconds =
-			durationRaw ? Number.parseInt(durationRaw, 10) : null;
-
-		if (durationRaw && Number.isNaN(durationSeconds)) {
-			throw new Error(
-				`Invalid duration_seconds value in time sessions: ${durationRaw}`
-			);
-		}
-
-		const normalizedDurationSeconds =
-			endedAt ?
-				(durationSeconds ??
-				Math.max(
-					0,
-					Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)
-				))
-			:	durationSeconds;
-
 		sessions.push({
 			startedAt,
-			endedAt,
-			durationSeconds: normalizedDurationSeconds
+			endedAt
 		});
 	}
 
