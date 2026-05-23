@@ -159,7 +159,6 @@ export type UpdateTaskDetailInput = {
   timeSessions?: Array<{
     startedAt: Date
     endedAt: Date | null
-    durationSeconds: number | null
   }>
 }
 
@@ -886,4 +885,4 @@ export async function updateTaskDetail(input: UpdateTaskDetailInput) {
     connection.release()
   }
 }
-
+
