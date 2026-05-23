@@ -1,7 +1,18 @@
 import { expect, test } from "@playwright/test"
+import mysql from "mysql2/promise"
 
 function buildUnique(testName: string) {
   return `${testName}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+async function withDbConnection() {
+  return mysql.createConnection({
+    host: process.env.DB_HOST ?? process.env.MYSQL_HOST ?? "127.0.0.1",
+    port: Number.parseInt(process.env.DB_PORT ?? process.env.MYSQL_PORT ?? "3306", 10),
+    user: process.env.DB_USER ?? process.env.MYSQL_USER ?? "root",
+    password: process.env.DB_PASSWORD ?? process.env.MYSQL_PASSWORD ?? "localtaskhub",
+    database: process.env.DB_NAME ?? process.env.MYSQL_DATABASE ?? "local-task-hub"
+  })
 }
 
 async function submitQuickAdd(page: import("@playwright/test").Page) {
@@ -38,6 +49,38 @@ async function openTaskDetail(page: import("@playwright/test").Page, title: stri
   await page.getByTestId('main-task-list').getByRole("link", { name: title }).click()
   await expect(page.getByRole("dialog", { name: "Task detail" })).toBeVisible()
   await expect(page.locator("#detailTitle")).toHaveValue(title)
+}
+
+async function setMidnightOverlapSession(title: string) {
+  const connection = await withDbConnection()
+
+  try {
+    const [taskRows] = await connection.query<Array<{ id: number }>>(
+      "SELECT id FROM tasks WHERE title = ? ORDER BY id DESC LIMIT 1",
+      [title]
+    )
+    const taskId = taskRows[0]?.id
+
+    expect(taskId).toBeTruthy()
+
+    const [updateResult] = await connection.execute<mysql.ResultSetHeader>(
+      `
+        UPDATE task_time_sessions
+        SET
+          started_at = DATE_SUB(CURRENT_DATE(), INTERVAL 10 MINUTE),
+          ended_at = DATE_ADD(CURRENT_DATE(), INTERVAL 10 MINUTE),
+          duration_seconds = 20 * 60
+        WHERE task_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+      `,
+      [taskId]
+    )
+
+    expect(updateResult.affectedRows).toBe(1)
+  } finally {
+    await connection.end()
+  }
 }
 
 test("start, stop, persist, and edit task time sessions", async ({ page }, testInfo) => {
@@ -169,13 +212,6 @@ test("today totals include overlap for sessions that started before midnight", a
   const unique = buildUnique(testInfo.project.name)
   const title = `Issue10 Midnight Overlap ${unique}`
 
-  const now = new Date()
-  const midnight = new Date(now)
-  midnight.setHours(0, 0, 0, 0)
-
-  const startedAt = new Date(midnight.getTime() - 10 * 60 * 1000)
-  const endedAt = new Date(midnight.getTime() + 10 * 60 * 1000)
-
   await page.goto("/")
   await showOnlyTask(page, title)
 
@@ -192,14 +228,7 @@ test("today totals include overlap for sessions that started before midnight", a
   await page.waitForTimeout(1100)
   await card.getByRole("button", { name: "Stop tracking" }).click()
 
-  await openTaskDetail(page, title)
-
-  await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
-  await page.locator("#detailTimeSessionStartedAt-0").fill(startedAt.toISOString())
-  await page.locator("#detailTimeSessionEndedAt-0").fill(endedAt.toISOString())
-  await page.locator("#detailTimeSessionDuration-0").fill("")
-
-  await saveTaskDetail(page)
+  await setMidnightOverlapSession(title)
 
   await showOnlyTask(page, title)
   await expect(card).toContainText("Today: 10m")
