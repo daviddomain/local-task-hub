@@ -14,9 +14,18 @@ async function withDbConnection() {
 async function submitQuickAdd(page: import('@playwright/test').Page) {
   const createButton = page.getByRole('button', { name: 'Create task' })
   await expect(createButton).toBeVisible()
-  await createButton.evaluate((element) => {
-    ;(element as HTMLButtonElement).click()
-  })
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === 'POST'),
+    createButton.click(),
+  ])
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toHaveCount(0)
+}
+
+async function openQuickAdd(page: import('@playwright/test').Page) {
+  await page.getByRole('link', { name: 'Create task' }).click()
+  const quickAdd = page.getByRole('dialog', { name: 'Quick add' })
+  await expect(quickAdd).toBeVisible()
+  await expect(quickAdd.getByLabel('Title *')).toBeEditable()
 }
 
 test('live search and combinable filters work with persisted data', async ({ page }) => {
@@ -30,7 +39,9 @@ test('live search and combinable filters work with persisted data', async ({ pag
   const urlToken = `issue11-${unique}`
 
   await page.goto('/')
+  await page.goto(`/?q=${encodeURIComponent(unique)}`, { waitUntil: 'domcontentloaded' })
 
+  await openQuickAdd(page)
   await page.getByLabel('Title *').fill(targetTitle)
   await page.getByLabel('Note (optional)').fill(`Contains ${noteToken}`)
   await page
@@ -43,6 +54,7 @@ test('live search and combinable filters work with persisted data', async ({ pag
   const targetCard = page.locator('li', { hasText: targetTitle })
   await expect(targetCard).toBeVisible()
 
+  await openQuickAdd(page)
   await page.getByLabel('Title *').fill(otherTitle)
   await page.getByLabel('Note (optional)').fill(`other-${unique}`)
   await page.getByLabel('First link (optional)').fill(`https://example.com/${unique}`)
@@ -76,7 +88,7 @@ test('live search and combinable filters work with persisted data', async ({ pag
     await connection.end()
   }
 
-  await page.reload()
+  await page.reload({ waitUntil: 'domcontentloaded' })
 
   await expect(targetCard).toBeVisible()
 
@@ -98,7 +110,7 @@ test('live search and combinable filters work with persisted data', async ({ pag
   await expect(page.locator('li', { hasText: targetTitle })).toBeVisible()
   await expect(page.locator('li', { hasText: otherTitle })).toHaveCount(0)
 
-  await page.goto('/')
+  await page.goto(`/?q=${encodeURIComponent(unique)}`, { waitUntil: 'domcontentloaded' })
   await page.locator("#status").click()
   await page.getByRole("option", { name: "blocked" }).click()
   await page.locator("#later").click()
@@ -119,9 +131,9 @@ test('live search and combinable filters work with persisted data', async ({ pag
   await expect(page.locator('li', { hasText: targetTitle })).toBeVisible()
   await expect(page.locator('li', { hasText: otherTitle })).toHaveCount(0)
 
-  await page.reload()
+  await page.reload({ waitUntil: 'domcontentloaded' })
 
   await expect(page.locator('li', { hasText: targetTitle })).toBeVisible()
   await expect(page.locator('li', { hasText: otherTitle })).toHaveCount(0)
 })
-
+

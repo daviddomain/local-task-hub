@@ -11,35 +11,42 @@ async function withDbConnection() {
   })
 }
 
+async function openTaskDetail(page: import('@playwright/test').Page, title: string) {
+  await page.getByTestId('main-task-list').getByRole('link', { name: title }).click()
+  const detailDialog = page.getByRole('dialog', { name: 'Task detail' })
+  await expect(detailDialog).toBeVisible()
+  await expect(page.locator('#detailTitle')).toHaveValue(title)
+}
+
+async function closeTaskDetail(page: import('@playwright/test').Page) {
+  const detailDialog = page.getByRole('dialog', { name: 'Task detail' })
+  await detailDialog.getByRole('button', { name: 'Close' }).click()
+  await expect(detailDialog).toHaveCount(0)
+}
+
 test('recently opened area tracks recency, deduplicates, bounds to five, and persists across reload', async ({ page }) => {
   test.setTimeout(120000)
   const unique = Date.now().toString()
   const titles = Array.from({ length: 6 }, (_, index) => 'Issue36 Recent ' + unique + ' ' + String(index + 1))
 
   const connection = await withDbConnection()
-  const taskIds: number[] = []
 
   try {
     for (const title of titles) {
-      const [insertResult] = await connection.execute<mysql.ResultSetHeader>(
-        'INSERT INTO tasks (title) VALUES (?)',
-        [title]
-      )
-      taskIds.push(insertResult.insertId)
+      await connection.execute<mysql.ResultSetHeader>('INSERT INTO tasks (title) VALUES (?)', [title])
     }
   } finally {
     await connection.end()
   }
 
-  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await page.goto(`/?q=${encodeURIComponent(unique)}`, { waitUntil: 'domcontentloaded' })
 
   const recentArea = page.locator("[aria-label='Recently opened tasks']")
   await expect(recentArea).toBeVisible()
 
-  for (let index = 0; index < taskIds.length; index += 1) {
-    await page.goto('/?taskId=' + String(taskIds[index]) + '#task-detail', { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('#detailTitle')).toHaveValue(titles[index])
-    await page.waitForTimeout(20)
+  for (const title of titles) {
+    await openTaskDetail(page, title)
+    await closeTaskDetail(page)
   }
 
   const recentItems = recentArea.locator('li')
@@ -51,14 +58,14 @@ test('recently opened area tracks recency, deduplicates, bounds to five, and per
   await expect(recentArea.getByRole('link', { name: titles[1] })).toHaveCount(1)
   await expect(recentArea.getByRole('link', { name: titles[0] })).toHaveCount(0)
 
-  await page.goto('/?taskId=' + String(taskIds[2]) + '#task-detail', { waitUntil: 'domcontentloaded' })
-  await expect(page.locator('#detailTitle')).toHaveValue(titles[2])
+  await openTaskDetail(page, titles[2])
+  await closeTaskDetail(page)
 
   await expect(recentItems).toHaveCount(5)
   await expect(recentItems.nth(0)).toContainText(titles[2])
   await expect(recentArea.getByRole('link', { name: titles[2] })).toHaveCount(1)
 
-  await page.reload()
+  await page.reload({ waitUntil: 'domcontentloaded' })
 
   await expect(recentArea).toBeVisible()
   await expect(recentItems).toHaveCount(5)
