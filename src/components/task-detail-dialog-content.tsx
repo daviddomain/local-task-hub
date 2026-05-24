@@ -45,10 +45,7 @@ function formatDateTimeLocalValue(value: Date) {
 	return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
-function getTimeSessionDurationLabel(
-	startedAt: Date,
-	endedAt: Date | null
-) {
+function getTimeSessionDurationLabel(startedAt: Date, endedAt: Date | null) {
 	if (!endedAt) {
 		return 'Running';
 	}
@@ -93,7 +90,7 @@ export function TaskDetailDialogContent({
 				</DialogDescription>
 			</DialogHeader>
 
-			<div className='overflow-y-auto px-6 py-5'>
+			<div className='overflow-y-auto px-6 py-5 max-h-[75svh]'>
 				<form
 					action={updateTaskDetailAction.bind(null, selectedTask.id)}
 					className='space-y-4'>
@@ -270,7 +267,9 @@ export function TaskDetailDialogContent({
 													name={'detailTimeSessionStartedAt_' + index}
 													type='datetime-local'
 													step='1'
-													defaultValue={formatDateTimeLocalValue(session.startedAt)}
+													defaultValue={formatDateTimeLocalValue(
+														session.startedAt
+													)}
 													className='font-mono text-xs'
 													required
 												/>
