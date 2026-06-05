@@ -47,6 +47,36 @@ export function getSourceBadgeLabel(task: Task) {
 	return SOURCE_LABELS[task.firstLinkSourceType];
 }
 
+export function getSourceBadgeItems(task: Task, visibleLimit = 3) {
+	const sourceTypes =
+		task.sourceTypes.length > 0 ?
+			task.sourceTypes
+		: task.firstLinkSourceType ?
+			[task.firstLinkSourceType]
+		:	[];
+
+	if (!task.firstLink || sourceTypes.length === 0) {
+		return [{ key: 'local', label: 'Local' }];
+	}
+
+	const boundedVisibleLimit = Math.max(1, visibleLimit);
+	const visibleSourceTypes = sourceTypes.slice(0, boundedVisibleLimit);
+	const hiddenCount = sourceTypes.length - visibleSourceTypes.length;
+	const items: Array<{ key: string; label: string }> = visibleSourceTypes.map((sourceType) => ({
+		key: sourceType,
+		label: SOURCE_LABELS[sourceType]
+	}));
+
+	if (hiddenCount > 0) {
+		items.push({
+			key: 'overflow',
+			label: `+${hiddenCount}`
+		});
+	}
+
+	return items;
+}
+
 export function getTaskTodayLabel(task: Task) {
 	return task.todayTrackedSeconds > 0 ?
 			formatDuration(task.todayTrackedSeconds)

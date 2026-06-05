@@ -3,7 +3,7 @@ import { Play, Plus, Search, Square } from 'lucide-react';
 
 import type { Task } from '@/lib/server/tasks';
 import {
-	getSourceBadgeLabel,
+	getSourceBadgeItems,
 	getTaskTodayLabel,
 	getTaskTotalLabel,
 	truncateNote
@@ -93,6 +93,7 @@ export function TaskList({
 							const taskHrefParams = new URLSearchParams(taskLinkParams);
 							taskHrefParams.set('taskId', String(task.id));
 							const taskHref = `/?${taskHrefParams.toString()}#task-detail`;
+							const sourceBadgeItems = getSourceBadgeItems(task);
 
 							return (
 								<li
@@ -119,11 +120,14 @@ export function TaskList({
 												className='text-xs'>
 												{task.status}
 											</Badge>
-											<Badge
-												variant='secondary'
-												className='text-xs'>
-												{getSourceBadgeLabel(task)}
-											</Badge>
+											{sourceBadgeItems.map((sourceBadgeItem) => (
+												<Badge
+													key={`${task.id}-source-${sourceBadgeItem.key}`}
+													variant='secondary'
+													className='text-xs'>
+													{sourceBadgeItem.label}
+												</Badge>
+											))}
 										</div>
 									</div>
 
