@@ -2,8 +2,14 @@ name: Playwright Tests
 on:
   push:
     branches: [ main, master ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches: [ main, master ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 jobs:
   test:
     timeout-minutes: 60
@@ -32,8 +38,18 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
+        cache: npm
     - name: Install dependencies
       run: npm ci
+    - name: Resolve Playwright version
+      id: playwright-version
+      run: echo "version=$(node -p \"require('@playwright/test/package.json').version\")" >> "$GITHUB_OUTPUT"
+    - name: Cache Playwright browsers
+      id: playwright-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
     - name: Wait for MySQL service
       run: |
         for i in {1..30}; do
@@ -47,7 +63,7 @@ jobs:
     - name: Apply DB schema
       run: mysql -h 127.0.0.1 -uroot -plocaltaskhub local-task-hub < .docker/db_schema.sql
     - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+      run: npx playwright install --with-deps chromium
     - name: Run Playwright tests
       run: npx playwright test --project=chromium
     - uses: actions/upload-artifact@v4
