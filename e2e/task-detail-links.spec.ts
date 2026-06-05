@@ -35,7 +35,14 @@ test('task detail renders attached links as clickable items and keeps one-per-li
 
   await page
     .locator('#detailLinks')
-    .fill('https://github.com/vercel/next.js\nhttps://gitlab.com/gitlab-org/gitlab')
+    .fill(
+      [
+        'https://github.com/vercel/next.js',
+        'https://gitlab.com/gitlab-org/gitlab',
+        'https://localtaskhub.atlassian.net/browse/LTH-38',
+        'https://example.com/task-38',
+      ].join('\n'),
+    )
 
   await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST'),
@@ -66,10 +73,22 @@ test('task detail renders attached links as clickable items and keeps one-per-li
   await popup.close()
 
   await showOnlyTask(page, title)
+  const taskCard = page.getByTestId('main-task-list').locator('li', { hasText: title })
+  await expect(taskCard).toContainText('GitHub')
+  await expect(taskCard).toContainText('GitLab')
+  await expect(taskCard).toContainText('Jira')
+  await expect(taskCard).toContainText('+1')
+
+  await showOnlyTask(page, title)
   await openTaskDetail(page, title)
 
   await expect(page.locator('#detailLinks')).toHaveValue(
-    'https://github.com/vercel/next.js\nhttps://gitlab.com/gitlab-org/gitlab',
+    [
+      'https://github.com/vercel/next.js',
+      'https://gitlab.com/gitlab-org/gitlab',
+      'https://localtaskhub.atlassian.net/browse/LTH-38',
+      'https://example.com/task-38',
+    ].join('\n'),
   )
   await expect(page.getByLabel('Attached links')).toBeVisible()
 })

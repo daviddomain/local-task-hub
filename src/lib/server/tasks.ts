@@ -36,6 +36,7 @@ type TaskRow = RowDataPacket & {
   note: string | null
   first_link: string | null
   first_link_source_type: TaskSourceType | null
+  link_sources_serialized: string | null
   tags_serialized: string | null
   people_serialized: string | null
   timer_started_at: Date | null
@@ -93,6 +94,7 @@ export type Task = {
   note: string | null
   firstLink: string | null
   firstLinkSourceType: TaskSourceType | null
+  sourceTypes: TaskSourceType[]
   tags: string[]
   people: string[]
   timerStartedAt: Date | null
@@ -185,6 +187,18 @@ function normalizeList(values?: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
 
+function dedupeSourceTypes(values: string[]) {
+  return values.filter(
+    (value, index): value is TaskSourceType =>
+      (value === "jira" ||
+        value === "gitlab" ||
+        value === "github" ||
+        value === "confluence" ||
+        value === "other") &&
+      values.indexOf(value) === index,
+  )
+}
+
 function inferSourceTypeFromUrl(url: string | null): TaskSourceType {
   if (!url) {
     return "other"
@@ -224,6 +238,7 @@ function mapRow(row: TaskRow): Task {
     note: row.note,
     firstLink: row.first_link,
     firstLinkSourceType: row.first_link_source_type ?? inferSourceTypeFromUrl(row.first_link),
+    sourceTypes: dedupeSourceTypes(parseSerializedList(row.link_sources_serialized)),
     tags: parseSerializedList(row.tags_serialized),
     people: parseSerializedList(row.people_serialized),
     timerStartedAt: row.timer_started_at,
@@ -308,7 +323,11 @@ export async function listRecentlyOpenedTasks(limit = MAX_RECENTLY_OPENED_TASKS)
 
 export async function listTasks(filters: TaskListFilters = {}) {
   const whereClauses: string[] = []
-  const params: Array<string | number | boolean | Date | null> = [LIST_SEPARATOR, LIST_SEPARATOR]
+  const params: Array<string | number | boolean | Date | null> = [
+    LIST_SEPARATOR,
+    LIST_SEPARATOR,
+    LIST_SEPARATOR,
+  ]
 
   const query = filters.query?.trim()
   if (query) {
@@ -467,6 +486,22 @@ export async function listTasks(filters: TaskListFilters = {}) {
           ORDER BY tl.created_at ASC, tl.id ASC
           LIMIT 1
         ) AS first_link_source_type,
+        (
+          SELECT GROUP_CONCAT(
+            CASE
+              WHEN LOWER(tl.url) LIKE '%atlassian.net%' OR LOWER(tl.url) LIKE '%jira%' THEN 'jira'
+              WHEN LOWER(tl.url) LIKE '%gitlab%' THEN 'gitlab'
+              WHEN LOWER(tl.url) LIKE '%github%' THEN 'github'
+              WHEN LOWER(tl.url) LIKE '%confluence%' THEN 'confluence'
+              WHEN tl.source_type IN ('jira', 'gitlab', 'github', 'confluence') THEN tl.source_type
+              ELSE 'other'
+            END
+            ORDER BY tl.created_at ASC, tl.id ASC
+            SEPARATOR ?
+          )
+          FROM task_links tl
+          WHERE tl.task_id = t.id
+        ) AS link_sources_serialized,
         (
           SELECT GROUP_CONCAT(tt.tag ORDER BY tt.tag SEPARATOR ?)
           FROM task_tags tt
