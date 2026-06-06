@@ -49,7 +49,7 @@ http://localhost:3000
 
 MySQL runs through Docker Compose and stores data in the named Docker volume declared in `docker-compose.yml`, so local data survives container restarts and `docker compose down`.
 
-For health checks, persistence details, and safe reset steps, see [docs/local-mysql.md](docs/local-mysql.md).
+For health checks, persistence details, backup/restore, and safe reset steps, see [docs/local-mysql.md](docs/local-mysql.md).
 
 ## Validation
 
@@ -73,7 +73,7 @@ CI currently runs the Chromium Playwright project against a MySQL service.
 
 - [MVP.md](MVP.md) is the product source of truth for Phase 1.
 - [AGENTS.md](AGENTS.md) contains Codex and project-agent guidance.
-- [docs/local-mysql.md](docs/local-mysql.md) documents the local MySQL setup.
+- [docs/local-mysql.md](docs/local-mysql.md) documents the local MySQL setup, including backup and restore.
 
 ## Exports And Local Data
 

@@ -60,6 +60,61 @@ MySQL data is persisted in the named Docker volume declared in `docker-compose.y
 
 That means data survives container restarts and `docker compose down`.
 
+## Backup and restore local app data
+
+Use this workflow for a local development backup before risky experiments,
+manual cleanup, or moving data between local project checkouts. The commands are
+project-specific for the Docker Compose service `db`, database
+`local-task-hub`, and local root password `localtaskhub`.
+
+Create a backup directory outside the repository so SQL dumps are not committed
+accidentally:
+
+```powershell
+$backupDir = "$env:USERPROFILE\local-task-hub-backups"
+New-Item -ItemType Directory -Force -Path $backupDir
+```
+
+Create a `mysqldump` backup:
+
+```powershell
+$backupPath = "$backupDir\local-task-hub-$(Get-Date -Format 'yyyyMMdd-HHmmss').sql"
+docker compose exec -T db mysqldump -uroot -plocaltaskhub local-task-hub > $backupPath
+```
+
+Verify that the backup file exists and is not empty before relying on it:
+
+```powershell
+Get-Item $backupPath | Select-Object FullName, Length, LastWriteTime
+```
+
+For a later restore, set `$backupPath` to the exact file you want to restore:
+
+```powershell
+$backupPath = "$env:USERPROFILE\local-task-hub-backups\local-task-hub-YYYYMMDD-HHMMSS.sql"
+Test-Path $backupPath
+```
+
+Only restore after `Test-Path` returns `True`.
+
+Warning: restoring a dump can overwrite local project data in the
+`local-task-hub` database. Review the selected backup file and stop any running
+`npm run dev` process before restore if you want to avoid writes while
+importing.
+
+Restore the backup into the local project database:
+
+```powershell
+Get-Content -Raw $backupPath | docker compose exec -T db mysql -uroot -plocaltaskhub local-task-hub
+```
+
+Confirm the database is still reachable after restore:
+
+```powershell
+docker compose exec -T db mysqladmin -uroot -plocaltaskhub ping
+docker compose exec -T db mysql -uroot -plocaltaskhub local-task-hub -e "SELECT COUNT(*) AS tasks FROM tasks;"
+```
+
 ## Clean up local E2E-created tasks
 
 Use this only for a local development database when repeated Playwright runs have
