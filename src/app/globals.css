@@ -179,6 +179,10 @@
 	textarea::placeholder {
 		color: var(--muted);
 	}
+	button:not(:disabled),
+	[role='button']:not(:disabled) {
+		cursor: pointer;
+	}
 	label {
 		font-weight: 400;
 	}
