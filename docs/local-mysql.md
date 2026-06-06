@@ -79,13 +79,18 @@ Create a `mysqldump` backup:
 
 ```powershell
 $backupPath = "$backupDir\local-task-hub-$(Get-Date -Format 'yyyyMMdd-HHmmss').sql"
-docker compose exec -T db mysqldump -uroot -plocaltaskhub local-task-hub > $backupPath
+docker compose exec -T db sh -c "mysqldump -uroot -plocaltaskhub local-task-hub > /tmp/local-task-hub-backup.sql"
+docker compose cp db:/tmp/local-task-hub-backup.sql $backupPath
+docker compose exec -T db rm /tmp/local-task-hub-backup.sql
 ```
 
 Verify that the backup file exists and is not empty before relying on it:
 
 ```powershell
-Get-Item $backupPath | Select-Object FullName, Length, LastWriteTime
+$backup = Get-Item $backupPath
+$backup.FullName
+$backup.Length
+$backup.LastWriteTime
 ```
 
 For a later restore, set `$backupPath` to the exact file you want to restore:
@@ -105,7 +110,9 @@ importing.
 Restore the backup into the local project database:
 
 ```powershell
-Get-Content -Raw $backupPath | docker compose exec -T db mysql -uroot -plocaltaskhub local-task-hub
+docker compose cp $backupPath db:/tmp/local-task-hub-restore.sql
+docker compose exec -T db sh -c "mysql -uroot -plocaltaskhub local-task-hub < /tmp/local-task-hub-restore.sql"
+docker compose exec -T db rm /tmp/local-task-hub-restore.sql
 ```
 
 Confirm the database is still reachable after restore:
