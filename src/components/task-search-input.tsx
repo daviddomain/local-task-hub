@@ -45,7 +45,7 @@ export function TaskSearchInput() {
 				value={value}
 				onChange={(event) => handleChange(event.target.value)}
 				placeholder='Search title, notes, tags, people, or links'
-				className='border-border pl-9'
+				className='border-border text-sm pl-9'
 			/>
 		</div>
 	);
