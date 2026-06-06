@@ -38,7 +38,7 @@ Polish rather than MVP gaps:
 
 ## 4. Technical stability / maintainability topics
 
-- **Stale `tests/` Playwright files appear outside the configured suite.** `playwright.config.ts` uses `testDir: './e2e'`, but `tests/example.spec.ts` still targets playwright.dev and `tests/task-detail.spec.ts` appears to reference older UI fields. They are not part of current CI and may confuse future contributors.
+- **Playwright suite location is aligned.** `playwright.config.ts` uses `testDir: './e2e'`, and the stale `tests/` specs from the readiness review were removed so future validation points at the active suite.
 - **Core workflow files are still large.** `src/app/page.tsx`, `src/lib/server/tasks.ts`, and `src/components/task-detail-dialog-content.tsx` carry a lot of behavior. This is manageable now after the home route split, but future changes should keep using small issue-driven extractions.
 - **Fallow is useful only as manual review support for now.** The documented Fallow evaluation found unused shadcn/ui-style files, one possible unused dependency, and duplicated E2E setup. These are useful signals but should not become a CI gate yet.
 - **E2E setup is duplicated across specs.** This is not currently blocking, but repeated Quick Add/DB helper patterns increase maintenance cost. Any helper extraction should preserve the clarity of per-spec setup.
@@ -58,8 +58,8 @@ Polish rather than MVP gaps:
 - **Type:** MVP documentation gap.
 - **Scope boundary:** Update `docs/local-mysql.md` and README links only. Include preview-safe commands for `mysqldump` and restore against this project database. Do not add app-level backup automation, cloud sync, or database reset infrastructure.
 
-### Issue 3: Remove or reconcile stale Playwright tests outside `e2e/`
+### Issue 3: Remove or reconcile stale Playwright tests outside `e2e/` - resolved
 
-- **Why it matters:** The configured suite is under `e2e/`, while `tests/` contains specs that are either generic or stale. That can mislead future validation and review.
+- **Resolution:** Removed the stale `tests/` specs so Playwright validation is centered on the configured `e2e/` suite.
 - **Type:** Polish / maintainability.
-- **Scope boundary:** Either delete the stale files or document why they are intentionally out of scope. Do not change Playwright CI strategy, introduce DB reset infrastructure, or rewrite the active E2E suite.
+- **Scope boundary:** No Playwright CI strategy, DB reset infrastructure, or active E2E suite rewrite was needed.
