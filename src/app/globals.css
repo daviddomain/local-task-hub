@@ -118,7 +118,7 @@
 	--primary-foreground: #000000;
 	--secondary: #1f232b;
 	--secondary-foreground: #ffffff;
-	--muted: #545b68;
+	--muted: #444a55;
 	--muted-foreground: #b2b6bd;
 	--accent: #1f232b;
 	--accent-foreground: #ffffff;
@@ -149,7 +149,7 @@
 	--primary-foreground: #000000;
 	--secondary: #1f232b;
 	--secondary-foreground: #ffffff;
-	--muted: #545b68;
+	--muted: #444a55;
 	--muted-foreground: #b2b6bd;
 	--accent: #1f232b;
 	--accent-foreground: #ffffff;
@@ -177,7 +177,7 @@
 	}
 	input::placeholder,
 	textarea::placeholder {
-		color: tomato;
+		color: var(--muted);
 	}
 	label {
 		font-weight: 400;
