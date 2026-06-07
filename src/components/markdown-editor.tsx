@@ -47,7 +47,7 @@ export function MarkdownEditor({
 					value={value}
 					onChange={(event) => setValue(event.target.value)}
 					placeholder='Write a markdown note...'
-					className='h-44 min-h-0 flex-1 resize-none overflow-auto rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0'
+					className='h-full min-h-0 resize-none overflow-auto rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0'
 				/>
 			</TabsContent>
 
