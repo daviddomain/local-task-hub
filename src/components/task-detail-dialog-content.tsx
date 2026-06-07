@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { Download } from 'lucide-react';
 
 import type { TaskDetail } from '@/lib/server/tasks';
+import { TaskDetailLaterToggle } from '@/components/task-detail-later-toggle';
 import { SelectFormField } from '@/components/select-form-field';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
 	DialogDescription,
 	DialogHeader,
@@ -135,16 +135,7 @@ export function TaskDetailDialogContent({
 							/>
 						</div>
 
-						<div className='flex items-end'>
-							<label className='flex items-center gap-2 text-sm'>
-								<Checkbox
-									id='detailLater'
-									name='detailLater'
-									defaultChecked={selectedTask.later}
-								/>
-								Later
-							</label>
-						</div>
+						<TaskDetailLaterToggle defaultPressed={selectedTask.later} />
 					</div>
 
 					<div>

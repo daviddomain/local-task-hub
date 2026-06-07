@@ -43,18 +43,20 @@ test("mark task done and reopen persists status while preserving later flag", as
 
   await openTaskDetail(page, title)
 
-  await page.locator("#detailLater").focus()
+  const laterToggle = page.getByRole("button", { name: "Later" })
+
+  await laterToggle.focus()
   await page.keyboard.press("Space")
 
   await page.getByRole("button", { name: "Save detail" }).click()
-  await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
+  await expect(laterToggle).toHaveAttribute("aria-pressed", /^(true|1)$/)
   await closeTaskDetail(page)
 
   await showOnlyTask(page, title)
   await expect(card).toContainText("later")
   await openTaskDetail(page, title)
   await expect(page.locator("#detailStatus")).toContainText("open")
-  await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
+  await expect(page.getByRole("button", { name: "Later" })).toHaveAttribute("aria-pressed", /^(true|1)$/)
 
   await page.getByRole("button", { name: "Mark done" }).click()
   await expect(page.getByRole("button", { name: "Reopen task" })).toBeVisible()
@@ -84,7 +86,7 @@ test("mark task done and reopen persists status while preserving later flag", as
   await expect(card).toContainText("later")
   await openTaskDetail(page, title)
   await expect(page.locator("#detailStatus")).toContainText("open")
-  await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
+  await expect(page.getByRole("button", { name: "Later" })).toHaveAttribute("aria-pressed", /^(true|1)$/)
 
   await page.reload({ waitUntil: "domcontentloaded" })
   await expect(page.locator("#detailTitle")).toHaveValue(title)
@@ -94,6 +96,16 @@ test("mark task done and reopen persists status while preserving later flag", as
   await expect(persistedCard).toContainText("open")
   await expect(persistedCard).toContainText("later")
   await expect(page.locator("#detailStatus")).toContainText("open")
-  await expect(page.getByRole("checkbox", { name: "Later" })).toHaveAttribute("aria-checked", /^(true|1)$/)
+  await expect(page.getByRole("button", { name: "Later" })).toHaveAttribute("aria-pressed", /^(true|1)$/)
+
+  await page.getByRole("button", { name: "Later" }).click()
+  await page.getByRole("button", { name: "Save detail" }).click()
+  await expect(page.getByRole("button", { name: "Later" })).toHaveAttribute("aria-pressed", /^(false|0)$/)
+  await closeTaskDetail(page)
+
+  await showOnlyTask(page, title)
+  await expect(persistedCard).not.toContainText("later")
+  await openTaskDetail(page, title)
+  await expect(page.getByRole("button", { name: "Later" })).toHaveAttribute("aria-pressed", /^(false|0)$/)
 })
 
