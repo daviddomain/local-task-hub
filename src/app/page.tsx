@@ -225,7 +225,10 @@ function getFirstParam(
 	return Array.isArray(value) ? value[0] : value;
 }
 
-function buildHref(baseParams: URLSearchParams, values: Record<string, string>) {
+function buildHref(
+	baseParams: URLSearchParams,
+	values: Record<string, string>
+) {
 	const params = new URLSearchParams(baseParams);
 
 	for (const [key, value] of Object.entries(values)) {
@@ -391,11 +394,11 @@ export default async function Home({
 						</CardHeader>
 						<CardContent className='space-y-5'>
 							<div className='grid gap-4'>
-								<div className='space-y-2'>
+								<div className='grid gap-2'>
 									<label
 										htmlFor='task-search'
 										className='text-sm font-medium'>
-										Search tasks
+										Search Tasks
 									</label>
 									<TaskSearchInput />
 								</div>

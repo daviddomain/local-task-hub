@@ -100,7 +100,7 @@ export function TaskDetailDialogContent({
 						value={detailReturnTo}
 					/>
 
-					<div className='space-y-1.5'>
+					<div>
 						<label
 							htmlFor='detailTitle'
 							className='text-sm font-medium'>
@@ -115,7 +115,7 @@ export function TaskDetailDialogContent({
 					</div>
 
 					<div className='grid gap-3 sm:grid-cols-2'>
-						<div className='space-y-1.5'>
+						<div>
 							<label
 								htmlFor='detailStatus'
 								className='text-sm font-medium'>
@@ -147,7 +147,7 @@ export function TaskDetailDialogContent({
 						</div>
 					</div>
 
-					<div className='space-y-1.5'>
+					<div>
 						<label
 							htmlFor='detailNote'
 							className='text-sm font-medium'>
@@ -166,7 +166,7 @@ export function TaskDetailDialogContent({
 						:	null}
 					</div>
 
-					<div className='space-y-1.5'>
+					<div>
 						<label
 							htmlFor='detailLinks'
 							className='text-sm font-medium'>
@@ -208,7 +208,7 @@ export function TaskDetailDialogContent({
 						:	null}
 					</div>
 
-					<div className='space-y-1.5'>
+					<div>
 						<label
 							htmlFor='detailTags'
 							className='text-sm font-medium'>
@@ -221,7 +221,7 @@ export function TaskDetailDialogContent({
 						/>
 					</div>
 
-					<div className='space-y-1.5'>
+					<div>
 						<label
 							htmlFor='detailPeople'
 							className='text-sm font-medium'>
@@ -235,7 +235,7 @@ export function TaskDetailDialogContent({
 					</div>
 
 					<div className='space-y-2'>
-						<div className='space-y-1.5'>
+						<div>
 							<p className='text-sm font-medium'>Time sessions</p>
 							<p className='text-xs text-muted-foreground'>
 								Edit start and end times with local date and time fields.
