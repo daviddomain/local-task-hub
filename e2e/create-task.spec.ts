@@ -103,7 +103,12 @@ test('open task detail, edit task, and persist detail changes after reload', asy
   const statusTrigger = page.locator("#detailStatus")
   await statusTrigger.click()
   await page.getByRole("option", { name: "blocked" }).click()
-  await page.locator('#detailNote').fill('Updated detail note')
+  await page
+    .locator('#detailNote')
+    .fill('## Updated detail note\n\nSaved **from preview**.')
+  await page.getByRole('tab', { name: 'Preview' }).click()
+  await expect(page.getByRole('heading', { name: 'Updated detail note' })).toBeVisible()
+  await expect(page.getByText('Saved from preview.')).toBeVisible()
 
   await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST'),
@@ -124,7 +129,9 @@ test('open task detail, edit task, and persist detail changes after reload', asy
 
   await expect(page.locator('#detailTitle')).toHaveValue(updatedTitle)
   await expect(page.locator("#detailStatus")).toContainText("blocked")
-  await expect(page.locator('#detailNote')).toHaveValue('Updated detail note')
+  await expect(page.locator('#detailNote')).toHaveValue(
+    '## Updated detail note\n\nSaved **from preview**.'
+  )
 })
 
 test('closing task detail dialog removes taskId from the URL', async ({ page }) => {

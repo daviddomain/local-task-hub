@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 
 import type { TaskDetail } from '@/lib/server/tasks';
 import { TaskDetailLaterToggle } from '@/components/task-detail-later-toggle';
+import { MarkdownEditor } from '@/components/markdown-editor';
 import { SelectFormField } from '@/components/select-form-field';
 import { Button } from '@/components/ui/button';
 import {
@@ -144,17 +145,11 @@ export function TaskDetailDialogContent({
 							className='text-sm font-medium'>
 							Note (markdown text)
 						</label>
-						<Textarea
+						<MarkdownEditor
 							id='detailNote'
 							name='detailNote'
 							defaultValue={selectedTask.note ?? ''}
-							className='min-h-28'
 						/>
-						{selectedTask.note ?
-							<pre className='max-h-24 overflow-auto rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground'>
-								{selectedTask.note}
-							</pre>
-						:	null}
 					</div>
 
 					<div>
