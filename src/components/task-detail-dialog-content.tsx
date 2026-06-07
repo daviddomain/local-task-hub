@@ -1,11 +1,10 @@
 import Link from 'next/link';
-import { Download, Check } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 import type { TaskDetail } from '@/lib/server/tasks';
 import { SelectFormField } from '@/components/select-form-field';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Toggle } from '@/components/ui/toggle';
 import {
 	DialogDescription,
 	DialogHeader,
@@ -135,7 +134,7 @@ export function TaskDetailDialogContent({
 								}))}
 							/>
 						</div>
-						{/* 
+
 						<div className='flex items-end'>
 							<label className='flex items-center gap-2 text-sm'>
 								<Checkbox
@@ -145,80 +144,68 @@ export function TaskDetailDialogContent({
 								/>
 								Later
 							</label>
-						</div> */}
-
-						<div className='flex justify-end items-end'>
-							<Toggle
-								id='detailLater'
-								name='detailLater'
-								defaultChecked={selectedTask.later}
-								aria-label='Toggle Later'
-								variant='outline'>
-								<Check className='group-data-[state=on]/toggle:--foreground' />
-								Later
-							</Toggle>
 						</div>
 					</div>
 
-					<div className='grid grid-cols-6 auto-rows-fr gap-4'>
-						<div className='col-span-3'>
-							<label
-								htmlFor='detailNote'
-								className='text-sm font-medium'>
-								Note (markdown text)
-							</label>
-							<Textarea
-								id='detailNote'
-								name='detailNote'
-								defaultValue={selectedTask.note ?? ''}
-								className='min-h-28'
-							/>
-							{selectedTask.note ?
-								<pre className='max-h-24 overflow-auto rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground'>
-									{selectedTask.note}
-								</pre>
-							:	null}
-						</div>
-						<div className='col-span-3'>
-							<label
-								htmlFor='detailLinks'
-								className='text-sm font-medium'>
-								Links (one URL per line)
-							</label>
-							<Textarea
-								id='detailLinks'
-								name='detailLinks'
-								defaultValue={selectedTask.links.join('\n')}
-								className='min-h-24'
-							/>
-							{selectedTask.links.length > 0 ?
-								<ul
-									className='space-y-1 rounded-md border border-border bg-muted/20 p-2 text-sm'
-									aria-label='Attached links'>
-									{selectedTask.links.map((link) => {
-										const domainHint = getLinkDomainHint(link);
-										return (
-											<li
-												key={link}
-												className='flex items-center justify-between gap-3'>
-												<a
-													href={link}
-													target='_blank'
-													rel='noreferrer noopener'
-													className='truncate text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
-													{truncateLinkLabel(link)}
-												</a>
-												{domainHint ?
-													<span className='shrink-0 text-xs text-muted-foreground'>
-														{domainHint}
-													</span>
-												:	null}
-											</li>
-										);
-									})}
-								</ul>
-							:	null}
-						</div>
+					<div>
+						<label
+							htmlFor='detailNote'
+							className='text-sm font-medium'>
+							Note (markdown text)
+						</label>
+						<Textarea
+							id='detailNote'
+							name='detailNote'
+							defaultValue={selectedTask.note ?? ''}
+							className='min-h-28'
+						/>
+						{selectedTask.note ?
+							<pre className='max-h-24 overflow-auto rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground'>
+								{selectedTask.note}
+							</pre>
+						:	null}
+					</div>
+
+					<div>
+						<label
+							htmlFor='detailLinks'
+							className='text-sm font-medium'>
+							Links (one URL per line)
+						</label>
+						<Textarea
+							id='detailLinks'
+							name='detailLinks'
+							defaultValue={selectedTask.links.join('\n')}
+							className='min-h-24'
+						/>
+						{selectedTask.links.length > 0 ?
+							<ul
+								className='space-y-1 rounded-md border border-border bg-muted/20 p-2 text-sm'
+								aria-label='Attached links'>
+								{selectedTask.links.map((link) => {
+									const domainHint = getLinkDomainHint(link);
+
+									return (
+										<li
+											key={link}
+											className='flex items-center justify-between gap-3'>
+											<a
+												href={link}
+												target='_blank'
+												rel='noreferrer noopener'
+												className='truncate text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
+												{truncateLinkLabel(link)}
+											</a>
+											{domainHint ?
+												<span className='shrink-0 text-xs text-muted-foreground'>
+													{domainHint}
+												</span>
+											:	null}
+										</li>
+									);
+								})}
+							</ul>
+						:	null}
 					</div>
 
 					<div>
@@ -306,12 +293,12 @@ export function TaskDetailDialogContent({
 													className='font-mono text-xs'
 												/>
 											</div>
-											<div className='space-y-3'>
+											<div className='space-y-1'>
 												<p className='text-xs font-medium text-muted-foreground'>
 													Duration
 												</p>
 												<p
-													className='rounded-md border px-3 py-2 text-xs'
+													className='rounded-md border border-border bg-background px-3 py-2 text-sm'
 													data-testid='time-session-duration'>
 													{getTimeSessionDurationLabel(
 														session.startedAt,
@@ -323,11 +310,13 @@ export function TaskDetailDialogContent({
 										<div className='mt-2'>
 											<label
 												htmlFor={'detailTimeSessionRemove-' + index}
-												className='flex items-center gap-2 text-sm'>
-												<Checkbox
+												className='inline-flex items-center gap-2 text-xs text-muted-foreground'>
+												<input
 													id={'detailTimeSessionRemove-' + index}
+													type='checkbox'
 													name={'detailTimeSessionRemove_' + index}
 													value='1'
+													className='size-4 rounded border-border align-middle'
 												/>
 												Remove this session on save
 											</label>
