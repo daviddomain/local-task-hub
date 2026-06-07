@@ -41,41 +41,39 @@ export function MarkdownEditor({
 
 			<TabsContent
 				value='edit'
-				className='m-0 h-44 data-[state=active]:flex'>
+				className='m-0 data-[state=active]:flex'>
 				<Textarea
 					id={id}
 					value={value}
 					onChange={(event) => setValue(event.target.value)}
 					placeholder='Write a markdown note...'
-					className='h-full min-h-0 field-sizing-fixed resize-none overflow-auto rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0'
+					className='min-h-40 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0'
 				/>
 			</TabsContent>
 
 			<TabsContent
 				value='preview'
-				className='m-0 h-44'>
-				<div className='h-full overflow-auto p-4'>
-					{value.trim() ?
-						<div className='space-y-3 break-words text-sm leading-6 text-foreground [&_a]:break-words [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_code]:break-words [&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:ml-5 [&_ol]:list-decimal [&_p]:break-words [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border [&_pre]:bg-muted/30 [&_pre]:p-3 [&_ul]:list-disc'>
-							<ReactMarkdown
-								components={{
-									a: ({ href, children }) => (
-										<a
-											href={href}
-											target='_blank'
-											rel='noreferrer noopener'>
-											{children}
-										</a>
-									),
-									img: ({ alt, src }) => (
-										<span>{`![${alt ?? ''}](${src ?? ''})`}</span>
-									)
-								}}>
-								{value}
-							</ReactMarkdown>
-						</div>
-					:	<p className='text-sm text-muted-foreground'>Nothing to preview.</p>}
-				</div>
+				className='m-0 p-4'>
+				{value.trim() ?
+					<div className='space-y-3 break-words text-sm leading-6 text-foreground [&_a]:break-words [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_code]:break-words [&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:ml-5 [&_ol]:list-decimal [&_p]:break-words [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border [&_pre]:bg-muted/30 [&_pre]:p-3 [&_ul]:list-disc'>
+						<ReactMarkdown
+							components={{
+								a: ({ href, children }) => (
+									<a
+										href={href}
+										target='_blank'
+										rel='noreferrer noopener'>
+										{children}
+									</a>
+								),
+								img: ({ alt, src }) => (
+									<span>{`![${alt ?? ''}](${src ?? ''})`}</span>
+								)
+							}}>
+							{value}
+						</ReactMarkdown>
+					</div>
+				:	<p className='text-sm text-muted-foreground'>Nothing to preview.</p>}
 			</TabsContent>
 		</Tabs>
 	);
