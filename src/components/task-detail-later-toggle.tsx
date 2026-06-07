@@ -13,6 +13,10 @@ export function TaskDetailLaterToggle({
 }: TaskDetailLaterToggleProps) {
 	const [pressed, setPressed] = React.useState(defaultPressed);
 
+	React.useEffect(() => {
+		setPressed(defaultPressed);
+	}, [defaultPressed]);
+
 	return (
 		<div className='flex items-end'>
 			<input
@@ -26,7 +30,7 @@ export function TaskDetailLaterToggle({
 				onPressedChange={setPressed}
 				variant='outline'
 				aria-label='Later'
-				className='h-9 justify-start rounded-md px-3 data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'>
+				className='h-9 justify-start rounded-md px-3 cursor-pointer data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'>
 				Later
 			</Toggle>
 		</div>
