@@ -108,6 +108,67 @@ test('task detail renders attached links as clickable items and keeps one-per-li
   await expect(page.getByLabel('Attached links')).toBeVisible()
 })
 
+test('task detail removes attached links locally and persists the remaining links on save', async ({ page }) => {
+  const unique = Date.now().toString()
+  const title = `Issue80 Remove Links ${unique}`
+  const githubUrl = `https://github.com/daviddomain/local-task-hub/issues/${unique}`
+  const gitlabUrl = `https://gitlab.com/local-task-hub/remove-${unique}`
+  const docsUrl = `https://example.com/docs/${unique}`
+  const pendingUrl = `https://example.com/pending-${unique}`
+
+  await page.goto('/')
+  await showOnlyTask(page, title)
+
+  await page.getByRole('link', { name: 'Create task' }).click()
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toBeVisible()
+  await page.getByLabel('Title *').fill(title)
+  await page.getByLabel('First link (optional)').fill(githubUrl)
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Create task' }).click(),
+  ])
+  await expect(page.getByRole('dialog', { name: 'Quick add' })).toHaveCount(0)
+
+  await showOnlyTask(page, title)
+  await openTaskDetail(page, title)
+
+  const linkInput = page.getByLabel('Link URL')
+  const addLinkButton = page.getByRole('button', { name: 'Add' })
+
+  await linkInput.fill(gitlabUrl)
+  await addLinkButton.click()
+  await linkInput.fill(docsUrl)
+  await addLinkButton.click()
+  await linkInput.fill(pendingUrl)
+
+  const attachedLinks = page.getByLabel('Attached links')
+  await expect(attachedLinks.getByRole('link')).toHaveCount(3)
+  await expect(page.locator('#detailLinks')).toHaveValue([githubUrl, gitlabUrl, docsUrl].join('\n'))
+
+  await page.getByRole('button', { name: `Remove link ${gitlabUrl}` }).click()
+
+  await expect(attachedLinks.getByRole('link', { name: gitlabUrl })).toHaveCount(0)
+  await expect(attachedLinks.getByRole('link')).toHaveCount(2)
+  await expect(page.locator('#detailLinks')).toHaveValue([githubUrl, docsUrl].join('\n'))
+  await expect(linkInput).toHaveValue(pendingUrl)
+
+  await Promise.all([
+    page.waitForResponse((response) => response.request().method() === 'POST'),
+    page.locator('#task-detail form').evaluate((form) => {
+      (form as HTMLFormElement).requestSubmit()
+    }),
+  ])
+
+  await showOnlyTask(page, title)
+  await openTaskDetail(page, title)
+
+  const reopenedLinks = page.getByLabel('Attached links')
+  await expect(reopenedLinks.getByRole('link', { name: githubUrl })).toBeVisible()
+  await expect(reopenedLinks.getByRole('link', { name: docsUrl })).toBeVisible()
+  await expect(reopenedLinks.getByRole('link', { name: gitlabUrl })).toHaveCount(0)
+  await expect(page.locator('#detailLinks')).toHaveValue([githubUrl, docsUrl].join('\n'))
+})
+
 test('task detail supports structured time session editing and explicit removal', async ({ page }) => {
   const unique = Date.now().toString()
   const title = `Issue35 Sessions ${unique}`

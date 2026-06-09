@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { XIcon } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import {
 	InputGroup,
 	InputGroupAddon,
@@ -65,6 +67,10 @@ export function TaskDetailLinksEditor({
 		setPendingUrl('');
 	}
 
+	function removeLink(url: string) {
+		setLinks((currentLinks) => currentLinks.filter((link) => link !== url));
+	}
+
 	return (
 		<div className='space-y-2'>
 			<label
@@ -120,7 +126,7 @@ export function TaskDetailLinksEditor({
 									href={link}
 									target='_blank'
 									rel='noreferrer noopener'
-									className='truncate text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
+									className='min-w-0 flex-1 truncate text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
 									{truncateLinkLabel(link)}
 								</a>
 								{domainHint ?
@@ -128,6 +134,15 @@ export function TaskDetailLinksEditor({
 										{domainHint}
 									</span>
 								:	null}
+								<Button
+									type='button'
+									variant='ghost'
+									size='icon-xs'
+									className='shrink-0 text-muted-foreground hover:text-foreground'
+									aria-label={`Remove link ${link}`}
+									onClick={() => removeLink(link)}>
+									<XIcon aria-hidden='true' />
+								</Button>
 							</li>
 						);
 					})}
