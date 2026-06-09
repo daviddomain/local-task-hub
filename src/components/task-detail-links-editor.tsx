@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
 	InputGroup,
@@ -34,6 +34,23 @@ export function TaskDetailLinksEditor({
 }: TaskDetailLinksEditorProps) {
 	const [links, setLinks] = useState(defaultLinks);
 	const [pendingUrl, setPendingUrl] = useState('');
+
+	useEffect(() => {
+		let isCurrent = true;
+
+		queueMicrotask(() => {
+			if (!isCurrent) {
+				return;
+			}
+
+			setLinks(defaultLinks);
+			setPendingUrl('');
+		});
+
+		return () => {
+			isCurrent = false;
+		};
+	}, [defaultLinks]);
 
 	function addPendingUrl() {
 		const nextUrl = pendingUrl.trim();
