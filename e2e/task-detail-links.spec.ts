@@ -33,16 +33,30 @@ test('task detail renders attached links as clickable items and keeps one-per-li
   await expect(page.getByRole('dialog', { name: 'Task detail' })).toBeVisible()
   await expect(page.getByLabel('Attached links')).toHaveCount(0)
 
-  await page
-    .locator('#detailLinks')
-    .fill(
-      [
-        'https://github.com/vercel/next.js',
-        'https://gitlab.com/gitlab-org/gitlab',
-        'https://localtaskhub.atlassian.net/browse/LTH-38',
-        'https://example.com/task-38',
-      ].join('\n'),
-    )
+  const linkInput = page.getByLabel('Link URL')
+  const addLinkButton = page.getByRole('button', { name: 'Add' })
+
+  await linkInput.fill(' https://github.com/vercel/next.js ')
+  await addLinkButton.click()
+  await linkInput.fill('https://gitlab.com/gitlab-org/gitlab')
+  await linkInput.press('Enter')
+  await linkInput.fill('https://localtaskhub.atlassian.net/browse/LTH-38')
+  await addLinkButton.click()
+  await linkInput.fill('https://example.com/task-38')
+  await addLinkButton.click()
+  await linkInput.fill('https://github.com/vercel/next.js')
+  await addLinkButton.click()
+
+  await expect(page.getByLabel('Attached links').getByRole('link')).toHaveCount(4)
+  await expect(page.locator('#detailLinks')).toHaveValue(
+    [
+      'https://github.com/vercel/next.js',
+      'https://gitlab.com/gitlab-org/gitlab',
+      'https://localtaskhub.atlassian.net/browse/LTH-38',
+      'https://example.com/task-38',
+    ].join('\n'),
+  )
+  await expect(linkInput).toHaveValue('')
 
   await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST'),
@@ -62,6 +76,7 @@ test('task detail renders attached links as clickable items and keeps one-per-li
   await expect(attachedLinks).toBeVisible()
   await expect(githubLink).toHaveAttribute('href', 'https://github.com/vercel/next.js')
   await expect(githubLink).toHaveAttribute('target', '_blank')
+  await expect(githubLink).toHaveAttribute('rel', 'noreferrer noopener')
   await expect(gitlabLink).toHaveAttribute('href', 'https://gitlab.com/gitlab-org/gitlab')
   await expect(attachedLinks).toContainText('github.com')
   await expect(attachedLinks).toContainText('gitlab.com')
