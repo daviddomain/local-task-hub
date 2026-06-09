@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 
 import type { TaskDetail } from '@/lib/server/tasks';
 import { TaskDetailLaterToggle } from '@/components/task-detail-later-toggle';
+import { TaskDetailLinksEditor } from '@/components/task-detail-links-editor';
 import { MarkdownEditor } from '@/components/markdown-editor';
 import { SelectFormField } from '@/components/select-form-field';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,6 @@ import {
 	DialogTitle
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { formatDuration } from '@/components/task-display-helpers';
 
 type UpdateTaskDetailAction = (
@@ -57,22 +57,6 @@ function getTimeSessionDurationLabel(startedAt: Date, endedAt: Date | null) {
 	);
 
 	return formatDuration(derivedSeconds);
-}
-
-function getLinkDomainHint(url: string) {
-	try {
-		return new URL(url).hostname.replace(/^www\./, '');
-	} catch {
-		return null;
-	}
-}
-
-function truncateLinkLabel(url: string, maxLength = 96) {
-	if (url.length <= maxLength) {
-		return url;
-	}
-
-	return `${url.slice(0, maxLength).trimEnd()}...`;
 }
 
 export function TaskDetailDialogContent({
@@ -152,47 +136,7 @@ export function TaskDetailDialogContent({
 						/>
 					</div>
 
-					<div>
-						<label
-							htmlFor='detailLinks'
-							className='text-sm font-medium'>
-							Links (one URL per line)
-						</label>
-						<Textarea
-							id='detailLinks'
-							name='detailLinks'
-							defaultValue={selectedTask.links.join('\n')}
-							className='min-h-24'
-						/>
-						{selectedTask.links.length > 0 ?
-							<ul
-								className='space-y-1 rounded-md border border-border bg-muted/20 p-2 text-sm'
-								aria-label='Attached links'>
-								{selectedTask.links.map((link) => {
-									const domainHint = getLinkDomainHint(link);
-
-									return (
-										<li
-											key={link}
-											className='flex items-center justify-between gap-3'>
-											<a
-												href={link}
-												target='_blank'
-												rel='noreferrer noopener'
-												className='truncate text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
-												{truncateLinkLabel(link)}
-											</a>
-											{domainHint ?
-												<span className='shrink-0 text-xs text-muted-foreground'>
-													{domainHint}
-												</span>
-											:	null}
-										</li>
-									);
-								})}
-							</ul>
-						:	null}
-					</div>
+					<TaskDetailLinksEditor defaultLinks={selectedTask.links} />
 
 					<div>
 						<label
