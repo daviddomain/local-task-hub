@@ -10,6 +10,32 @@ async function openTaskDetail(page: import('@playwright/test').Page, title: stri
   await expect(page.locator('#detailTitle')).toHaveValue(title)
 }
 
+function formatDisplayDateTimeValue(value: string) {
+  const [date, time] = value.split('T')
+  const [year, month, day] = date.split('-')
+
+  return `${day}.${month}.${year} ${time}`
+}
+
+function withZeroSeconds(value: string) {
+  return `${value}:00`
+}
+
+async function setTaskDateTimePickerTime(
+  page: import('@playwright/test').Page,
+  id: string,
+  hour: number,
+  minute: 0 | 15 | 30 | 45,
+) {
+  await page.locator(`#${id}`).click()
+  const popover = page.locator("[data-slot='popover-content']")
+  await expect(popover).toBeVisible()
+  await popover.getByRole('button', { name: `Select hour ${String(hour).padStart(2, '0')}` }).click()
+  await popover.getByRole('button', { name: `Select minute ${String(minute).padStart(2, '0')}` }).click()
+  await page.keyboard.press('Escape')
+  await expect(popover).toHaveCount(0)
+}
+
 test('task detail renders attached links as clickable items and keeps one-per-line persistence', async ({ page }) => {
   const unique = Date.now().toString()
   const title = `Issue34 Links ${unique}`
@@ -204,11 +230,18 @@ test('task detail supports structured time session editing and explicit removal'
 
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
 
-  const startedAt = '2026-01-02T03:04:05'
-  const endedAt = '2026-01-02T04:04:05'
+  const startedAtRaw = await page.getByTestId('detailTimeSessionStartedAt-0-value').inputValue()
+  const sessionDate = new Date(startedAtRaw)
+  sessionDate.setHours(3, 0, 0, 0)
+  const startedAt = `${sessionDate.getFullYear()}-${String(sessionDate.getMonth() + 1).padStart(2, '0')}-${String(
+    sessionDate.getDate(),
+  ).padStart(2, '0')}T03:00`
+  const endedAt = `${startedAt.slice(0, 11)}04:00`
 
-  await page.locator('#detailTimeSessionStartedAt-0').fill(startedAt)
-  await page.locator('#detailTimeSessionEndedAt-0').fill(endedAt)
+  await setTaskDateTimePickerTime(page, 'detailTimeSessionStartedAt-0', 3, 0)
+  await setTaskDateTimePickerTime(page, 'detailTimeSessionEndedAt-0', 4, 0)
+  await expect(page.getByTestId('detailTimeSessionStartedAt-0-value')).toHaveValue(startedAt)
+  await expect(page.getByTestId('detailTimeSessionEndedAt-0-value')).toHaveValue(endedAt)
 
   await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST'),
@@ -220,8 +253,10 @@ test('task detail supports structured time session editing and explicit removal'
   await showOnlyTask(page, title)
   await openTaskDetail(page, title)
 
-  await expect(page.locator('#detailTimeSessionStartedAt-0')).toHaveValue(startedAt)
-  await expect(page.locator('#detailTimeSessionEndedAt-0')).toHaveValue(endedAt)
+  await expect(page.getByTestId('detailTimeSessionStartedAt-0-value')).toHaveValue(withZeroSeconds(startedAt))
+  await expect(page.getByTestId('detailTimeSessionEndedAt-0-value')).toHaveValue(withZeroSeconds(endedAt))
+  await expect(page.locator('#detailTimeSessionStartedAt-0')).toHaveValue(formatDisplayDateTimeValue(startedAt))
+  await expect(page.locator('#detailTimeSessionEndedAt-0')).toHaveValue(formatDisplayDateTimeValue(endedAt))
   await expect(page.getByTestId('time-session-duration')).toHaveText('1h 0m')
 
   await page.locator('#detailTimeSessionRemove-0').check()

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Download } from 'lucide-react';
 
 import type { TaskDetail } from '@/lib/server/tasks';
+import { TaskDateTimePicker } from '@/components/task-date-time-picker';
 import { TaskDetailLaterToggle } from '@/components/task-detail-later-toggle';
 import { TaskDetailLinksEditor } from '@/components/task-detail-links-editor';
 import { MarkdownEditor } from '@/components/markdown-editor';
@@ -33,17 +34,6 @@ function formatTimestamp(value: Date) {
 		dateStyle: 'medium',
 		timeStyle: 'short'
 	}).format(value);
-}
-
-function formatDateTimeLocalValue(value: Date) {
-	const year = value.getFullYear();
-	const month = String(value.getMonth() + 1).padStart(2, '0');
-	const day = String(value.getDate()).padStart(2, '0');
-	const hours = String(value.getHours()).padStart(2, '0');
-	const minutes = String(value.getMinutes()).padStart(2, '0');
-	const seconds = String(value.getSeconds()).padStart(2, '0');
-
-	return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
 function getTimeSessionDurationLabel(startedAt: Date, endedAt: Date | null) {
@@ -168,7 +158,7 @@ export function TaskDetailDialogContent({
 						<div>
 							<p className='text-sm font-medium'>Time sessions</p>
 							<p className='text-xs text-muted-foreground'>
-								Edit start and end times with local date and time fields.
+								Edit start and end times with quarter-hour local fields.
 							</p>
 						</div>
 						<input
@@ -192,15 +182,11 @@ export function TaskDetailDialogContent({
 													className='text-xs font-medium text-muted-foreground'>
 													Started at
 												</label>
-												<Input
+												<TaskDateTimePicker
 													id={'detailTimeSessionStartedAt-' + index}
 													name={'detailTimeSessionStartedAt_' + index}
-													type='datetime-local'
-													step='1'
-													defaultValue={formatDateTimeLocalValue(
-														session.startedAt
-													)}
-													className='font-mono text-xs'
+													defaultValue={session.startedAt}
+													placeholder='Select start'
 													required
 												/>
 											</div>
@@ -210,17 +196,13 @@ export function TaskDetailDialogContent({
 													className='text-xs font-medium text-muted-foreground'>
 													Ended at
 												</label>
-												<Input
+												<TaskDateTimePicker
 													id={'detailTimeSessionEndedAt-' + index}
 													name={'detailTimeSessionEndedAt_' + index}
-													type='datetime-local'
-													step='1'
 													defaultValue={
-														session.endedAt ?
-															formatDateTimeLocalValue(session.endedAt)
-														:	''
+														session.endedAt ? session.endedAt : null
 													}
-													className='font-mono text-xs'
+													placeholder='Select end'
 												/>
 											</div>
 											<div className='space-y-1'>
