@@ -22,6 +22,10 @@ function formatDisplayDateTimeValue(value: string) {
   return `${day}.${month}.${year} ${time}`
 }
 
+function withZeroSeconds(value: string) {
+  return `${value}:00`
+}
+
 async function setTaskDateTimePickerTime(
   page: import("@playwright/test").Page,
   id: string,
@@ -115,6 +119,38 @@ async function setMidnightOverlapSession(title: string) {
   }
 }
 
+async function setLatestSessionPreciseTimes(title: string) {
+  const connection = await withDbConnection()
+
+  try {
+    const [taskRows] = await connection.query<Array<{ id: number }>>(
+      "SELECT id FROM tasks WHERE title = ? ORDER BY id DESC LIMIT 1",
+      [title]
+    )
+    const taskId = taskRows[0]?.id
+
+    expect(taskId).toBeTruthy()
+
+    const [updateResult] = await connection.execute<mysql.ResultSetHeader>(
+      `
+        UPDATE task_time_sessions
+        SET
+          started_at = CONCAT(CURRENT_DATE(), ' 03:04:05.123'),
+          ended_at = CONCAT(CURRENT_DATE(), ' 04:05:06.789'),
+          duration_seconds = 3661
+        WHERE task_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+      `,
+      [taskId]
+    )
+
+    expect(updateResult.affectedRows).toBe(1)
+  } finally {
+    await connection.end()
+  }
+}
+
 test("start, stop, persist, and edit task time sessions", async ({ page }, testInfo) => {
   const unique = buildUnique(testInfo.project.name)
   const title = `Issue10 Time Tracking ${unique}`
@@ -141,12 +177,24 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
   await card.getByRole("button", { name: "Stop tracking" }).click()
   await expect(card).toContainText("Stopped")
 
+  await setLatestSessionPreciseTimes(title)
+  await showOnlyTask(page, title)
   await openTaskDetail(page, title)
 
   const sessionRows = page.locator("#task-detail [data-testid='time-session-row']")
   await expect(sessionRows).toHaveCount(1)
 
   const startedAtRaw = await page.getByTestId("detailTimeSessionStartedAt-0-value").inputValue()
+  const endedAtRaw = await page.getByTestId("detailTimeSessionEndedAt-0-value").inputValue()
+  expect(startedAtRaw).toMatch(/T03:04:05/)
+  expect(endedAtRaw).toMatch(/T04:05:06/)
+
+  await saveTaskDetail(page)
+  await showOnlyTask(page, title)
+  await openTaskDetail(page, title)
+  await expect(page.getByTestId("detailTimeSessionStartedAt-0-value")).toHaveValue(startedAtRaw)
+  await expect(page.getByTestId("detailTimeSessionEndedAt-0-value")).toHaveValue(endedAtRaw)
+
   const sessionDate = new Date(startedAtRaw)
   const correctedStartedAt = new Date(sessionDate)
   correctedStartedAt.setHours(3, 0, 0, 0)
@@ -162,6 +210,8 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
     correctedEndedAt.getHours(),
     correctedEndedAt.getMinutes() as 0 | 15 | 30 | 45
   )
+  await expect(page.getByTestId("detailTimeSessionStartedAt-0-value")).toHaveValue(correctedStartedAtInput)
+  await expect(page.getByTestId("detailTimeSessionEndedAt-0-value")).toHaveValue(correctedEndedAtInput)
   await saveTaskDetail(page)
 
   await showOnlyTask(page, title)
@@ -175,11 +225,15 @@ test("start, stop, persist, and edit task time sessions", async ({ page }, testI
 
   await openTaskDetail(page, title)
   await expect(page.locator("#task-detail [data-testid='time-session-row']")).toHaveCount(1)
-  await expect(page.getByTestId("detailTimeSessionStartedAt-0-value")).toHaveValue(correctedStartedAtInput)
+  await expect(page.getByTestId("detailTimeSessionStartedAt-0-value")).toHaveValue(
+    withZeroSeconds(correctedStartedAtInput)
+  )
   await expect(page.locator("#detailTimeSessionStartedAt-0")).toHaveValue(
     formatDisplayDateTimeValue(correctedStartedAtInput)
   )
-  await expect(page.getByTestId("detailTimeSessionEndedAt-0-value")).toHaveValue(correctedEndedAtInput)
+  await expect(page.getByTestId("detailTimeSessionEndedAt-0-value")).toHaveValue(
+    withZeroSeconds(correctedEndedAtInput)
+  )
   await expect(page.locator("#detailTimeSessionEndedAt-0")).toHaveValue(
     formatDisplayDateTimeValue(correctedEndedAtInput)
   )

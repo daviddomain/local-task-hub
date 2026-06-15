@@ -26,11 +26,12 @@ type TaskDateTimePickerProps = {
 };
 
 type PickerState = {
-	defaultSubmitValue: string;
+	initialSubmitValue: string;
 	selectedDate: Date | null;
 	month: Date;
 	hour: number;
 	minute: number;
+	hasUserChanged: boolean;
 };
 
 const HOURS = Array.from({ length: 24 }, (_, index) => index);
@@ -54,6 +55,27 @@ function formatSubmitValue(value: Date | null) {
 	return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+function formatInitialSubmitValue(value: Date | null) {
+	if (!value) {
+		return "";
+	}
+
+	const year = value.getFullYear();
+	const month = padTimePart(value.getMonth() + 1);
+	const day = padTimePart(value.getDate());
+	const hours = padTimePart(value.getHours());
+	const minutes = padTimePart(value.getMinutes());
+	const seconds = padTimePart(value.getSeconds());
+	const milliseconds = value.getMilliseconds();
+	const baseValue = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+
+	if (milliseconds === 0) {
+		return baseValue;
+	}
+
+	return `${baseValue}.${String(milliseconds).padStart(3, "0")}`;
+}
+
 function formatDisplayValue(value: Date | null) {
 	if (!value) {
 		return "";
@@ -73,11 +95,12 @@ function buildState(defaultValue: Date | null): PickerState {
 	const month = selectedDate ?? new Date();
 
 	return {
-		defaultSubmitValue: formatSubmitValue(defaultValue),
+		initialSubmitValue: formatInitialSubmitValue(defaultValue),
 		selectedDate,
 		month,
 		hour: selectedDate?.getHours() ?? 0,
-		minute: selectedDate?.getMinutes() ?? 0
+		minute: selectedDate?.getMinutes() ?? 0,
+		hasUserChanged: false
 	};
 }
 
@@ -92,19 +115,21 @@ export function TaskDateTimePicker({
 	name,
 	defaultValue,
 	required = false,
-	placeholder = "Datum und Uhrzeit waehlen"
+	placeholder = "Select date and time"
 }: TaskDateTimePickerProps) {
 	const [open, setOpen] = React.useState(false);
 	const [state, setState] = React.useState(() => buildState(defaultValue));
-	const defaultSubmitValue = formatSubmitValue(defaultValue);
+	const initialSubmitValue = formatInitialSubmitValue(defaultValue);
 
-	if (state.defaultSubmitValue !== defaultSubmitValue) {
+	React.useEffect(() => {
 		setState(buildState(defaultValue));
-	}
+	}, [defaultValue, initialSubmitValue]);
 
 	const selectedDate = state.selectedDate;
 	const displayValue = formatDisplayValue(selectedDate);
-	const submitValue = formatSubmitValue(selectedDate);
+	const submitValue = state.hasUserChanged
+		? formatSubmitValue(selectedDate)
+		: state.initialSubmitValue;
 
 	function updateDate(nextDate: Date | undefined) {
 		if (!nextDate) {
@@ -114,7 +139,8 @@ export function TaskDateTimePicker({
 		setState((current) => ({
 			...current,
 			selectedDate: withTime(nextDate, current.hour, current.minute),
-			month: nextDate
+			month: nextDate,
+			hasUserChanged: true
 		}));
 	}
 
@@ -125,7 +151,8 @@ export function TaskDateTimePicker({
 			return {
 				...current,
 				hour,
-				selectedDate: withTime(baseDate, hour, current.minute)
+				selectedDate: withTime(baseDate, hour, current.minute),
+				hasUserChanged: true
 			};
 		});
 	}
@@ -137,7 +164,8 @@ export function TaskDateTimePicker({
 			return {
 				...current,
 				minute,
-				selectedDate: withTime(baseDate, current.hour, minute)
+				selectedDate: withTime(baseDate, current.hour, minute),
+				hasUserChanged: true
 			};
 		});
 	}
@@ -149,7 +177,8 @@ export function TaskDateTimePicker({
 
 		setState((current) => ({
 			...current,
-			selectedDate: null
+			selectedDate: null,
+			hasUserChanged: true
 		}));
 		setOpen(false);
 	}
@@ -170,7 +199,6 @@ export function TaskDateTimePicker({
 					readOnly
 					required={required}
 					className="cursor-pointer font-mono text-xs"
-					aria-label={placeholder}
 					onClick={() => setOpen(true)}
 					onKeyDown={(event) => {
 						if (event.key === "ArrowDown" || event.key === "Enter") {
@@ -187,7 +215,7 @@ export function TaskDateTimePicker({
 							<InputGroupButton
 								variant="ghost"
 								size="icon-xs"
-								aria-label="Datum und Uhrzeit auswaehlen">
+								aria-label="Select date and time">
 								<CalendarIcon />
 							</InputGroupButton>
 						</PopoverTrigger>

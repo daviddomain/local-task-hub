@@ -186,7 +186,7 @@ export function TaskDetailDialogContent({
 													id={'detailTimeSessionStartedAt-' + index}
 													name={'detailTimeSessionStartedAt_' + index}
 													defaultValue={session.startedAt}
-													placeholder='Start waehlen'
+													placeholder='Select start'
 													required
 												/>
 											</div>
@@ -202,7 +202,7 @@ export function TaskDetailDialogContent({
 													defaultValue={
 														session.endedAt ? session.endedAt : null
 													}
-													placeholder='Ende waehlen'
+													placeholder='Select end'
 												/>
 											</div>
 											<div className='space-y-1'>

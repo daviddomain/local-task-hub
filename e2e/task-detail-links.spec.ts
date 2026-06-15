@@ -17,6 +17,10 @@ function formatDisplayDateTimeValue(value: string) {
   return `${day}.${month}.${year} ${time}`
 }
 
+function withZeroSeconds(value: string) {
+  return `${value}:00`
+}
+
 async function setTaskDateTimePickerTime(
   page: import('@playwright/test').Page,
   id: string,
@@ -236,6 +240,8 @@ test('task detail supports structured time session editing and explicit removal'
 
   await setTaskDateTimePickerTime(page, 'detailTimeSessionStartedAt-0', 3, 0)
   await setTaskDateTimePickerTime(page, 'detailTimeSessionEndedAt-0', 4, 0)
+  await expect(page.getByTestId('detailTimeSessionStartedAt-0-value')).toHaveValue(startedAt)
+  await expect(page.getByTestId('detailTimeSessionEndedAt-0-value')).toHaveValue(endedAt)
 
   await Promise.all([
     page.waitForResponse((response) => response.request().method() === 'POST'),
@@ -247,8 +253,8 @@ test('task detail supports structured time session editing and explicit removal'
   await showOnlyTask(page, title)
   await openTaskDetail(page, title)
 
-  await expect(page.getByTestId('detailTimeSessionStartedAt-0-value')).toHaveValue(startedAt)
-  await expect(page.getByTestId('detailTimeSessionEndedAt-0-value')).toHaveValue(endedAt)
+  await expect(page.getByTestId('detailTimeSessionStartedAt-0-value')).toHaveValue(withZeroSeconds(startedAt))
+  await expect(page.getByTestId('detailTimeSessionEndedAt-0-value')).toHaveValue(withZeroSeconds(endedAt))
   await expect(page.locator('#detailTimeSessionStartedAt-0')).toHaveValue(formatDisplayDateTimeValue(startedAt))
   await expect(page.locator('#detailTimeSessionEndedAt-0')).toHaveValue(formatDisplayDateTimeValue(endedAt))
   await expect(page.getByTestId('time-session-duration')).toHaveText('1h 0m')
