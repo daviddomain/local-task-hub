@@ -435,14 +435,6 @@ export default async function Home({
 								todayWorkedSummary={todayWorkedSummary}
 								visibleLimit={TODAY_WORKED_SUMMARY_VISIBLE_LIMIT}
 							/>
-
-							<TaskFilters
-								activeFilterLabels={activeFilterLabels}
-								filters={filters}
-								peopleOptions={peopleOptions}
-								statusOptions={STATUS_OPTIONS}
-								tagOptions={tagOptions}
-							/>
 						</CardContent>
 					</Card>
 
@@ -456,6 +448,15 @@ export default async function Home({
 					className='lg:sticky lg:top-8 lg:self-start'
 					aria-label='Task list'>
 					<TaskList
+						filtersContent={
+							<TaskFilters
+								activeFilterLabels={activeFilterLabels}
+								filters={filters}
+								peopleOptions={peopleOptions}
+								statusOptions={STATUS_OPTIONS}
+								tagOptions={tagOptions}
+							/>
+						}
 						openQuickAddHref={openQuickAddHref}
 						selectedTaskId={selectedTask?.id ?? null}
 						startTrackingAction={startTrackingAction}

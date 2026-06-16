@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Play, Plus, Search, Square } from 'lucide-react';
 
 import type { Task } from '@/lib/server/tasks';
@@ -29,6 +30,7 @@ import {
 type TaskTrackingAction = (formData: FormData) => Promise<void>;
 
 type TaskListProps = {
+	filtersContent?: ReactNode;
 	openQuickAddHref: string;
 	selectedTaskId: number | null;
 	startTrackingAction: TaskTrackingAction;
@@ -38,6 +40,7 @@ type TaskListProps = {
 };
 
 export function TaskList({
+	filtersContent,
 	openQuickAddHref,
 	selectedTaskId,
 	startTrackingAction,
@@ -55,6 +58,12 @@ export function TaskList({
 				</CardDescription>
 			</CardHeader>
 			<CardContent className='min-h-0 flex-1 overflow-y-auto'>
+				{filtersContent ?
+					<div className='mb-5 border-b border-border pb-5'>
+						{filtersContent}
+					</div>
+				:	null}
+
 				{tasks.length === 0 ?
 					<Empty className='border border-dashed border-border bg-muted/20'>
 						<EmptyHeader>
