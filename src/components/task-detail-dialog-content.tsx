@@ -205,12 +205,12 @@ export function TaskDetailDialogContent({
 													placeholder='Select end'
 												/>
 											</div>
-											<div className='space-y-1'>
+											<div className='space-y-3'>
 												<p className='text-xs font-medium text-muted-foreground'>
 													Duration
 												</p>
 												<p
-													className='rounded-md border border-border bg-background px-3 py-2 text-sm'
+													className='rounded-md border border-border bg-background px-3 py-2 text-xs'
 													data-testid='time-session-duration'>
 													{getTimeSessionDurationLabel(
 														session.startedAt,
