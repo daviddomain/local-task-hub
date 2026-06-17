@@ -1,12 +1,5 @@
 import type { Metadata } from 'next';
-import { Roboto } from 'next/font/google';
 import './globals.css';
-
-const roboto = Roboto({
-	weight: '400',
-	subsets: ['latin'],
-	display: 'swap'
-});
 
 export const metadata: Metadata = {
 	title: 'Local Task Hub',
@@ -21,7 +14,7 @@ export default function RootLayout({
 	return (
 		<html
 			lang='de'
-			className={`${roboto.className} dark`}>
+			className='dark'>
 			<body>{children}</body>
 		</html>
 	);
