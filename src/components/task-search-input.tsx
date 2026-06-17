@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 
@@ -13,24 +13,9 @@ export function TaskSearchInput() {
 	const searchParamsString = searchParams.toString();
 	const urlQueryValue = searchParams.get('q') ?? '';
 	const [value, setValue] = useState(urlQueryValue);
-	const previousUrlQueryValueRef = useRef(urlQueryValue);
 
 	useEffect(() => {
-		if (urlQueryValue === previousUrlQueryValueRef.current) {
-			return;
-		}
-
-		let isCanceled = false;
-		previousUrlQueryValueRef.current = urlQueryValue;
-		queueMicrotask(() => {
-			if (!isCanceled) {
-				setValue(urlQueryValue);
-			}
-		});
-
-		return () => {
-			isCanceled = true;
-		};
+		setValue(urlQueryValue);
 	}, [urlQueryValue]);
 
 	useEffect(() => {
