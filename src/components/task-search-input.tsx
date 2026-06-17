@@ -1,37 +1,62 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 
 export function TaskSearchInput() {
 	const pathname = usePathname();
+	const router = useRouter();
 	const searchParams = useSearchParams();
+	const searchParamsString = searchParams.toString();
 	const urlQueryValue = searchParams.get('q') ?? '';
 	const [value, setValue] = useState(urlQueryValue);
+	const previousUrlQueryValueRef = useRef(urlQueryValue);
 
 	useEffect(() => {
-		setValue(urlQueryValue);
-	}, [urlQueryValue]);
-
-	function handleChange(nextValue: string) {
-		setValue(nextValue);
-
-		const nextParams = new URLSearchParams(searchParams.toString());
-		if (nextValue.trim()) {
-			nextParams.set('q', nextValue.trim());
-		} else {
-			nextParams.delete('q');
+		if (urlQueryValue === previousUrlQueryValueRef.current) {
+			return;
 		}
 
-		nextParams.delete('taskId');
+		let isCanceled = false;
+		previousUrlQueryValueRef.current = urlQueryValue;
+		queueMicrotask(() => {
+			if (!isCanceled) {
+				setValue(urlQueryValue);
+			}
+		});
 
-		const query = nextParams.toString();
-		const nextUrl = query ? `${pathname}?${query}` : pathname;
-		window.location.assign(nextUrl);
-	}
+		return () => {
+			isCanceled = true;
+		};
+	}, [urlQueryValue]);
+
+	useEffect(() => {
+		const nextQueryValue = value.trim();
+
+		if (nextQueryValue === urlQueryValue) {
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			const nextParams = new URLSearchParams(searchParamsString);
+			if (nextQueryValue) {
+				nextParams.set('q', nextQueryValue);
+			} else {
+				nextParams.delete('q');
+			}
+
+			nextParams.delete('taskId');
+
+			const query = nextParams.toString();
+			const nextUrl = query ? `${pathname}?${query}` : pathname;
+			router.replace(nextUrl, { scroll: false });
+		}, 300);
+
+		return () => window.clearTimeout(timeoutId);
+	}, [pathname, router, searchParamsString, urlQueryValue, value]);
 
 	return (
 		<div className='relative'>
@@ -43,7 +68,7 @@ export function TaskSearchInput() {
 				id='task-search'
 				type='search'
 				value={value}
-				onChange={(event) => handleChange(event.target.value)}
+				onChange={(event) => setValue(event.target.value)}
 				placeholder='Search title, notes, tags, people, or links'
 				className='border-border text-sm pl-9'
 			/>

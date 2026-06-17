@@ -67,12 +67,13 @@ test('live search and combinable filters work with persisted data', async ({ pag
 
   // Simulate legacy persisted data where known-source URL exists but source_type stayed at fallback 'other'.
   const connection = await withDbConnection()
+  let targetTaskId: number | undefined
   try {
     const [targetRows] = await connection.query<Array<{ id: number }>>(
       'SELECT id FROM tasks WHERE title = ? ORDER BY id DESC LIMIT 1',
       [targetTitle]
     )
-    const targetTaskId = targetRows[0]?.id
+    targetTaskId = targetRows[0]?.id
 
     expect(targetTaskId).toBeTruthy()
 
@@ -93,8 +94,30 @@ test('live search and combinable filters work with persisted data', async ({ pag
   await expect(targetCard).toBeVisible()
 
   const searchInput = page.locator('#task-search')
+  await page.goto(
+    `/?q=${encodeURIComponent(unique)}&status=blocked&taskId=999999999`,
+    { waitUntil: 'domcontentloaded' }
+  )
+  await expect(searchInput).toHaveValue(unique)
+  await page.evaluate(() => {
+    ;(window as Window & { __searchReloadMarker?: string }).__searchReloadMarker = 'still-here'
+  })
+  const historyLengthBeforeSearch = await page.evaluate(() => window.history.length)
   await searchInput.fill(noteToken)
-  await expect(page).toHaveURL(new RegExp(`q=${encodeURIComponent(noteToken)}`))
+  await expect(searchInput).toHaveValue(noteToken)
+  await expect(page).toHaveURL((url) => {
+    return (
+      url.searchParams.get('q') === noteToken &&
+      url.searchParams.get('status') === 'blocked' &&
+      !url.searchParams.has('taskId')
+    )
+  })
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as Window & { __searchReloadMarker?: string }).__searchReloadMarker)
+    )
+    .toBe('still-here')
+  await expect.poll(() => page.evaluate(() => window.history.length)).toBe(historyLengthBeforeSearch)
   await expect(targetCard).toBeVisible()
   await expect(otherCard).toHaveCount(0)
 
