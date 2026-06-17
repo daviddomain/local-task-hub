@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 
@@ -13,8 +13,15 @@ export function TaskSearchInput() {
 	const searchParamsString = searchParams.toString();
 	const urlQueryValue = searchParams.get('q') ?? '';
 	const [value, setValue] = useState(urlQueryValue);
+	const previousUrlQueryValueRef = useRef(urlQueryValue);
 
 	useEffect(() => {
+		if (urlQueryValue === previousUrlQueryValueRef.current) {
+			return;
+		}
+
+		previousUrlQueryValueRef.current = urlQueryValue;
+		// eslint-disable-next-line react-hooks/set-state-in-effect -- Sync controlled input state only when the URL query changes externally.
 		setValue(urlQueryValue);
 	}, [urlQueryValue]);
 
