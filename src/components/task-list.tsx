@@ -41,17 +41,16 @@ type TaskListProps = {
 };
 
 const badgeBaseClass =
-	'h-auto min-h-5 max-w-full justify-start whitespace-normal break-all px-2 py-0.5 text-left text-caption leading-tight';
+	'h-auto min-h-5 max-w-full justify-start whitespace-normal break-all px-2 py-0.5 text-left text-[11px] leading-tight text-foreground';
 
 const statusBadgeClassByStatus: Record<string, string> = {
-	blocked: 'border-product-consul/50 bg-product-consul/15 text-product-consul',
-	done: 'border-product-nomad/50 bg-product-nomad/15 text-product-nomad',
+	blocked: 'border-product-consul/50 bg-product-consul/20',
+	done: 'border-product-nomad/50 bg-product-nomad/20',
 	in_progress:
-		'border-product-waypoint/50 bg-product-waypoint/15 text-product-waypoint',
-	open: 'border-border bg-secondary text-foreground',
-	review:
-		'border-product-terraform/50 bg-product-terraform/20 text-product-terraform-bright',
-	waiting: 'border-product-vault/60 bg-product-vault/15 text-product-vault'
+		'border-product-waypoint/50 bg-product-waypoint/20',
+	open: 'border-ring/60 bg-ring/20',
+	review: 'border-product-terraform/55 bg-product-terraform/20',
+	waiting: 'border-product-vault/60 bg-product-vault/20'
 };
 
 function getStatusBadgeClass(status: string) {
@@ -142,7 +141,7 @@ export function TaskList({
 													variant='secondary'
 													className={cn(
 														badgeBaseClass,
-														'border border-ring/40 bg-ring/15 text-foreground'
+														'border border-ring/40 bg-ring/15'
 													)}>
 													selected
 												</Badge>
@@ -160,7 +159,7 @@ export function TaskList({
 													variant='outline'
 													className={cn(
 														badgeBaseClass,
-														'border-product-vault/60 bg-product-vault/15 text-product-vault'
+														'border-product-vault/60 bg-product-vault/20'
 													)}>
 													later
 												</Badge>
@@ -175,7 +174,7 @@ export function TaskList({
 														variant='outline'
 														className={cn(
 															badgeBaseClass,
-															'border-product-terraform/45 bg-product-terraform/15 text-product-terraform-bright'
+															'border-product-terraform/45 bg-product-terraform/15'
 														)}>
 														#{tag}
 													</Badge>
@@ -185,7 +184,7 @@ export function TaskList({
 									</div>
 
 									<div className='py-2.5'>
-										<p className='break-words text-body-sm font-semibold leading-tight text-foreground'>
+										<p className='break-words text-base font-semibold leading-tight text-foreground'>
 											<Link
 												href={taskHref}
 												className='underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
@@ -209,7 +208,7 @@ export function TaskList({
 															variant='outline'
 															className={cn(
 																badgeBaseClass,
-																'border-product-nomad/45 bg-product-nomad/15 text-product-nomad'
+																'border-product-nomad/45 bg-product-nomad/15'
 															)}>
 															{person}
 														</Badge>
@@ -225,7 +224,7 @@ export function TaskList({
 															variant='secondary'
 															className={cn(
 																badgeBaseClass,
-																'border border-product-vagrant/45 bg-product-vagrant/15 text-product-vagrant'
+																'border border-product-boundary/45 bg-product-boundary/15'
 															)}>
 															{sourceBadgeItem.label}
 														</Badge>
@@ -267,7 +266,7 @@ export function TaskList({
 											:	<Button
 													type='submit'
 													size='sm'
-													variant='outline'>
+													variant='default'>
 													<Play
 														aria-hidden='true'
 														className='size-3.5'
