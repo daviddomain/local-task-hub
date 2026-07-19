@@ -26,6 +26,7 @@ import {
 	EmptyMedia,
 	EmptyTitle
 } from '@/components/ui/empty';
+import { cn } from '@/lib/utils';
 
 type TaskTrackingAction = (formData: FormData) => Promise<void>;
 
@@ -38,6 +39,26 @@ type TaskListProps = {
 	taskLinkParams: string;
 	tasks: Task[];
 };
+
+const badgeBaseClass =
+	'h-auto min-h-5 max-w-full justify-start whitespace-normal break-all px-2 py-0.5 text-left text-[11px] leading-tight text-foreground';
+
+const statusBadgeClassByStatus: Record<string, string> = {
+	blocked: 'border-product-consul/50 bg-product-consul/20',
+	done: 'border-product-nomad/50 bg-product-nomad/20',
+	in_progress:
+		'border-product-waypoint/50 bg-product-waypoint/20',
+	open: 'border-ring/60 bg-ring/20',
+	review: 'border-product-terraform/55 bg-product-terraform/20',
+	waiting: 'border-product-vault/60 bg-product-vault/20'
+};
+
+function getStatusBadgeClass(status: string) {
+	return (
+		statusBadgeClassByStatus[status] ??
+		'border-border bg-secondary text-foreground'
+	);
+}
 
 export function TaskList({
 	filtersContent,
@@ -107,80 +128,120 @@ export function TaskList({
 							return (
 								<li
 									key={task.id}
-									className='rounded-xl border border-border p-3'>
-									<div className='flex items-start justify-between gap-3'>
-										<p className='font-medium'>
+									className={cn(
+										'rounded-lg border border-border bg-card p-3 transition-colors',
+										isSelected ?
+											'border-ring/70 bg-secondary/30'
+										:	'hover:bg-secondary/20'
+									)}>
+									<div className='flex flex-wrap items-start justify-between gap-2 border-b border-border/60 pb-2'>
+										<div className='flex min-w-0 flex-1 flex-wrap gap-1.5'>
+											{isSelected ?
+												<Badge
+													variant='secondary'
+													className={cn(
+														badgeBaseClass,
+														'border border-ring/40 bg-ring/15'
+													)}>
+													selected
+												</Badge>
+											:	null}
+											<Badge
+												variant='outline'
+												className={cn(
+													badgeBaseClass,
+													getStatusBadgeClass(task.status)
+												)}>
+												{task.status}
+											</Badge>
+											{task.later ?
+												<Badge
+													variant='outline'
+													className={cn(
+														badgeBaseClass,
+														'border-product-vault/60 bg-product-vault/20'
+													)}>
+													later
+												</Badge>
+											:	null}
+										</div>
+
+										{task.tags.length > 0 ?
+											<div className='flex min-w-0 flex-1 flex-wrap justify-end gap-1.5'>
+												{task.tags.map((tag) => (
+													<Badge
+														key={`${task.id}-tag-${tag}`}
+														variant='outline'
+														className={cn(
+															badgeBaseClass,
+															'border-product-terraform/45 bg-product-terraform/15'
+														)}>
+														#{tag}
+													</Badge>
+												))}
+											</div>
+										:	null}
+									</div>
+
+									<div className='py-2.5'>
+										<p className='break-words text-base font-semibold leading-tight text-foreground'>
 											<Link
 												href={taskHref}
 												className='underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
 												{task.title}
 											</Link>
 										</p>
-										<div className='flex flex-wrap items-center justify-end gap-2'>
-											{isSelected ?
-												<Badge
-													variant='secondary'
-													className='text-xs'>
-													selected
-												</Badge>
-											:	null}
-											<Badge
-												variant='outline'
-												className='text-xs'>
-												{task.status}
-											</Badge>
-											{sourceBadgeItems.map((sourceBadgeItem) => (
-												<Badge
-													key={`${task.id}-source-${sourceBadgeItem.key}`}
-													variant='secondary'
-													className='text-xs'>
-													{sourceBadgeItem.label}
-												</Badge>
-											))}
-										</div>
-									</div>
-
-									<div className='mt-2 flex flex-wrap gap-2'>
-										{task.later ?
-											<Badge
-												variant='outline'
-												className='text-xs'>
-												later
-											</Badge>
+										{task.note ?
+											<p className='mt-1.5 break-words text-sm leading-snug text-muted-foreground'>
+												{truncateNote(task.note)}
+											</p>
 										:	null}
-
-										{task.tags.map((tag) => (
-											<Badge
-												key={`${task.id}-tag-${tag}`}
-												variant='outline'
-												className='text-xs'>
-												#{tag}
-											</Badge>
-										))}
-
-										{task.people.map((person) => (
-											<Badge
-												key={`${task.id}-person-${person}`}
-												variant='outline'
-												className='text-xs'>
-												{person}
-											</Badge>
-										))}
 									</div>
 
-									{task.note ?
-										<p className='mt-2 text-sm text-muted-foreground'>
-											{truncateNote(task.note)}
-										</p>
+									{task.people.length > 0 || sourceBadgeItems.length > 0 ?
+										<div className='flex flex-wrap items-start justify-between gap-2 border-t border-border/60 pt-2'>
+											{task.people.length > 0 ?
+												<div className='flex min-w-0 flex-1 flex-wrap gap-1.5'>
+													{task.people.map((person) => (
+														<Badge
+															key={`${task.id}-person-${person}`}
+															variant='outline'
+															className={cn(
+																badgeBaseClass,
+																'border-product-nomad/45 bg-product-nomad/15'
+															)}>
+															{person}
+														</Badge>
+													))}
+												</div>
+											:	null}
+
+											{sourceBadgeItems.length > 0 ?
+												<div className='flex min-w-0 flex-1 flex-wrap justify-end gap-1.5'>
+													{sourceBadgeItems.map((sourceBadgeItem) => (
+														<Badge
+															key={`${task.id}-source-${sourceBadgeItem.key}`}
+															variant='secondary'
+															className={cn(
+																badgeBaseClass,
+																'border border-product-boundary/45 bg-product-boundary/15'
+															)}>
+															{sourceBadgeItem.label}
+														</Badge>
+													))}
+												</div>
+											:	null}
+										</div>
 									:	null}
 
-									<div className='mt-2 space-y-2'>
-										<p className='text-xs text-muted-foreground'>
-											{task.timerStartedAt ? 'Running now' : 'Stopped'} {' · '}
-											Today: {getTaskTodayLabel(task)} {' · '} Total:{' '}
+									<div className='mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2'>
+										<p className='min-w-0 flex-1 text-xs leading-snug text-muted-foreground'>
+											{task.timerStartedAt ? 'Running now' : 'Stopped'} {' / '}
+											Today: {getTaskTodayLabel(task)} {' / '} Total:{' '}
 											{getTaskTotalLabel(task)}
 										</p>
 										<form
+											className='shrink-0'
 											action={
 												task.timerStartedAt ? stopTrackingAction : (
 													startTrackingAction
@@ -205,7 +266,7 @@ export function TaskList({
 											:	<Button
 													type='submit'
 													size='sm'
-													variant='outline'>
+													variant='default'>
 													<Play
 														aria-hidden='true'
 														className='size-3.5'
