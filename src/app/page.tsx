@@ -22,6 +22,7 @@ import {
 import { QuickAddDialogContent } from '@/components/quick-add-dialog-content';
 import { RecentlyOpenedTasks } from '@/components/recently-opened-tasks';
 import { TaskDetailDialogContent } from '@/components/task-detail-dialog-content';
+import type { TaskDetailSaveState } from '@/components/task-detail-form';
 import { TaskFilters } from '@/components/task-filters';
 import { TaskList } from '@/components/task-list';
 import { TaskSearchInput } from '@/components/task-search-input';
@@ -176,7 +177,11 @@ function parseTimeSessionsInput(formData: FormData) {
 	return sessions;
 }
 
-async function updateTaskDetailAction(taskId: number, formData: FormData) {
+async function updateTaskDetailAction(
+	taskId: number,
+	_previousState: TaskDetailSaveState,
+	formData: FormData
+): Promise<TaskDetailSaveState> {
 	'use server';
 
 	const title = String(formData.get('detailTitle') ?? '');
@@ -187,10 +192,12 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
 	const linksRaw = String(formData.get('detailLinks') ?? '');
 	const tagsRaw = String(formData.get('detailTags') ?? '');
 	const peopleRaw = String(formData.get('detailPeople') ?? '');
-	const detailReturnTo = getSafeRedirectPath(formData.get('detailReturnTo'));
+	if (!title.trim()) {
+		return { status: 'error', message: 'Task title is required.' };
+	}
 
 	if (!STATUS_OPTIONS.includes(status as (typeof STATUS_OPTIONS)[number])) {
-		throw new Error('Invalid status');
+		return { status: 'error', message: 'Please select a valid task status.' };
 	}
 
 	let statusValue = status as (typeof STATUS_OPTIONS)[number];
@@ -201,20 +208,37 @@ async function updateTaskDetailAction(taskId: number, formData: FormData) {
 		statusValue = 'open';
 	}
 
-	await updateTaskDetail({
-		taskId,
-		title,
-		status: statusValue,
-		later,
-		note,
-		links: parseListInput(linksRaw, '\n'),
-		tags: parseListInput(tagsRaw, ','),
-		people: parseListInput(peopleRaw, ','),
-		timeSessions: parseTimeSessionsInput(formData)
-	});
+	let timeSessions: ReturnType<typeof parseTimeSessionsInput>;
+	try {
+		timeSessions = parseTimeSessionsInput(formData);
+	} catch {
+		return { status: 'error', message: 'Please check the time session dates.' };
+	}
+	if (timeSessions.some(({ startedAt, endedAt }) => endedAt && endedAt < startedAt)) {
+		return { status: 'error', message: 'A time session cannot end before it starts.' };
+	}
+
+	try {
+		await updateTaskDetail({
+			taskId,
+			title,
+			status: statusValue,
+			later,
+			note,
+			links: parseListInput(linksRaw, '\n'),
+			tags: parseListInput(tagsRaw, ','),
+			people: parseListInput(peopleRaw, ','),
+			timeSessions
+		});
+	} catch {
+		return {
+			status: 'error',
+			message: 'Could not save task details. Your inputs are preserved. Please try again.'
+		};
+	}
 
 	revalidatePath('/');
-	redirect(detailReturnTo);
+	return { status: 'saved', message: 'Task details saved.' };
 }
 
 function getFirstParam(
@@ -371,10 +395,6 @@ export default async function Home({
 	const taskListParams = taskLinkParams.toString();
 	const closeHref = buildHref(taskLinkParams, {});
 	const openQuickAddHref = buildHref(taskLinkParams, { quickAdd: '1' });
-	const selectedTaskHref =
-		selectedTask ?
-			`${buildHref(taskLinkParams, { taskId: String(selectedTask.id) })}#task-detail`
-		:	closeHref;
 
 	return (
 		<div className='mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-10'>
@@ -486,7 +506,6 @@ export default async function Home({
 					contentId='task-detail'>
 					<TaskDetailDialogContent
 						closeHref={closeHref}
-						detailReturnTo={selectedTaskHref}
 						selectedTask={selectedTask}
 						statusOptions={STATUS_OPTIONS}
 						updateTaskDetailAction={updateTaskDetailAction}
