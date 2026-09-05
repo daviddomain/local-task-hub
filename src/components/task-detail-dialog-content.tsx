@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Download } from 'lucide-react';
 
 import type { TaskDetail } from '@/lib/server/tasks';
+import { TaskDetailForm, type TaskDetailSaveAction } from '@/components/task-detail-form';
 import { TaskDateTimePicker } from '@/components/task-date-time-picker';
 import { TaskDetailLaterToggle } from '@/components/task-detail-later-toggle';
 import { TaskDetailLinksEditor } from '@/components/task-detail-links-editor';
@@ -18,12 +19,11 @@ import { formatDuration } from '@/components/task-display-helpers';
 
 type UpdateTaskDetailAction = (
 	taskId: number,
-	formData: FormData
-) => Promise<void>;
+	...args: Parameters<TaskDetailSaveAction>
+) => ReturnType<TaskDetailSaveAction>;
 
 type TaskDetailDialogContentProps = {
 	closeHref: string;
-	detailReturnTo: string;
 	selectedTask: TaskDetail;
 	statusOptions: readonly string[];
 	updateTaskDetailAction: UpdateTaskDetailAction;
@@ -51,7 +51,6 @@ function getTimeSessionDurationLabel(startedAt: Date, endedAt: Date | null) {
 
 export function TaskDetailDialogContent({
 	closeHref,
-	detailReturnTo,
 	selectedTask,
 	statusOptions,
 	updateTaskDetailAction
@@ -66,14 +65,9 @@ export function TaskDetailDialogContent({
 			</DialogHeader>
 
 			<div className='overflow-y-auto px-6 py-5 max-h-[75svh]'>
-				<form
-					action={updateTaskDetailAction.bind(null, selectedTask.id)}
-					className='space-y-4'>
-					<input
-						type='hidden'
-						name='detailReturnTo'
-						value={detailReturnTo}
-					/>
+				<TaskDetailForm
+					key={selectedTask.id}
+					action={updateTaskDetailAction.bind(null, selectedTask.id)}>
 
 					<div>
 						<label
@@ -302,7 +296,7 @@ export function TaskDetailDialogContent({
 							<Link href={closeHref}>Close</Link>
 						</Button>
 					</div>
-				</form>
+				</TaskDetailForm>
 			</div>
 		</>
 	);
